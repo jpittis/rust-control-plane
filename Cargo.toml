@@ -1,0 +1,8 @@
+[package]
+name = "rust-control-plane"
+version = "0.1.0"
+authors = ["Jake Pittis <jakepittis@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+rust-xds-grpc = { git = "https://github.com/jpittis/rust-xds-grpc" }
