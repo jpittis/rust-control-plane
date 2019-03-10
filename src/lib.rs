@@ -18,10 +18,12 @@ use rust_xds_grpc::lds_grpc::ListenerDiscoveryService;
 use rust_xds_grpc::rds_grpc::RouteDiscoveryService;
 use rust_xds_grpc::sds_grpc::SecretDiscoveryService;
 
+use futures::sync::mpsc;
 use futures::Future;
 
 trait Cache {
     fn fetch(&mut self, req: DiscoveryRequest) -> DiscoveryResponse;
+    fn watch(&mut self, req: DiscoveryRequest) -> mpsc::Receiver<DiscoveryResponse>;
 }
 
 #[derive(Clone)]
@@ -40,6 +42,8 @@ impl<C: Cache> DiscoveryServer<C> {
         stream: RequestStream<DiscoveryRequest>,
         sink: DuplexSink<DiscoveryResponse>,
     ) {
+        // TODO: Probably don't want to use a channel here.
+        // let sender, receiver = mpsc::channel(0);
         ctx.spawn(
             sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None))
                 .map_err(|err| error!("stream: {:?}", err)),
