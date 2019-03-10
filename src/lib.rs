@@ -2,7 +2,10 @@ extern crate futures;
 extern crate grpcio;
 extern crate rust_xds_grpc;
 
-use grpcio::{DuplexSink, RequestStream, RpcContext, UnarySink};
+#[macro_use]
+extern crate log;
+
+use grpcio::{DuplexSink, RequestStream, RpcContext, RpcStatus, RpcStatusCode, UnarySink};
 
 use rust_xds_grpc::discovery::{
     DiscoveryRequest, DiscoveryResponse, IncrementalDiscoveryRequest, IncrementalDiscoveryResponse,
@@ -15,6 +18,8 @@ use rust_xds_grpc::lds_grpc::ListenerDiscoveryService;
 use rust_xds_grpc::rds_grpc::RouteDiscoveryService;
 use rust_xds_grpc::sds_grpc::SecretDiscoveryService;
 
+use futures::Future;
+
 #[derive(Clone)]
 struct DiscoveryServer;
 
@@ -25,8 +30,10 @@ impl DiscoveryServer {
         stream: RequestStream<DiscoveryRequest>,
         sink: DuplexSink<DiscoveryResponse>,
     ) {
-        // TODO: Keep checking for requests and sending responses. Will likely need to do some
-        // crazy future shit here cause this will be blocking.
+        ctx.spawn(
+            sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None))
+                .map_err(|err| error!("stream: {:?}", err)),
+        )
     }
 
     fn fetch(
@@ -35,8 +42,10 @@ impl DiscoveryServer {
         req: DiscoveryRequest,
         sink: UnarySink<DiscoveryResponse>,
     ) {
-        // TODO: Fetch from cache.
-        // TODO: Return response.
+        ctx.spawn(
+            sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None))
+                .map_err(|err| error!("fetch: {:?}", err)),
+        )
     }
 }
 
@@ -56,7 +65,10 @@ impl ClusterDiscoveryService for DiscoveryServer {
         stream: RequestStream<IncrementalDiscoveryRequest>,
         sink: DuplexSink<IncrementalDiscoveryResponse>,
     ) {
-        // TODO: The Go implementation returns an error.
+        ctx.spawn(
+            sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None))
+                .map_err(|err| error!("incremental_clusters: {:?}", err)),
+        )
     }
 
     fn fetch_clusters(
@@ -85,7 +97,10 @@ impl RouteDiscoveryService for DiscoveryServer {
         stream: RequestStream<IncrementalDiscoveryRequest>,
         sink: DuplexSink<IncrementalDiscoveryResponse>,
     ) {
-        // TODO: The Go implementation returns an error.
+        ctx.spawn(
+            sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None))
+                .map_err(|err| error!("incremental_routes: {:?}", err)),
+        )
     }
 
     fn fetch_routes(
@@ -154,7 +169,10 @@ impl AggregatedDiscoveryService for DiscoveryServer {
         stream: RequestStream<IncrementalDiscoveryRequest>,
         sink: DuplexSink<IncrementalDiscoveryResponse>,
     ) {
-        // TODO: The Go implementation returns an error.
+        ctx.spawn(
+            sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None))
+                .map_err(|err| error!("incremental_aggregated_resources: {:?}", err)),
+        )
     }
 }
 
