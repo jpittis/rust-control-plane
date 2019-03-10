@@ -20,10 +20,16 @@ use rust_xds_grpc::sds_grpc::SecretDiscoveryService;
 
 use futures::Future;
 
-#[derive(Clone)]
-struct DiscoveryServer;
+trait Cache {
+    fn fetch(&mut self, req: DiscoveryRequest) -> DiscoveryResponse;
+}
 
-impl DiscoveryServer {
+#[derive(Clone)]
+struct DiscoveryServer<C: Cache> {
+    cache: C,
+}
+
+impl<C: Cache> DiscoveryServer<C> {
     fn stream(
         &mut self,
         ctx: RpcContext,
@@ -42,14 +48,12 @@ impl DiscoveryServer {
         req: DiscoveryRequest,
         sink: UnarySink<DiscoveryResponse>,
     ) {
-        ctx.spawn(
-            sink.fail(RpcStatus::new(RpcStatusCode::Unimplemented, None))
-                .map_err(|err| error!("fetch: {:?}", err)),
-        )
+        let resp = self.cache.fetch(req);
+        ctx.spawn(sink.success(resp).map_err(|err| error!("fetch: {:?}", err)))
     }
 }
 
-impl ClusterDiscoveryService for DiscoveryServer {
+impl<C: Cache> ClusterDiscoveryService for DiscoveryServer<C> {
     fn stream_clusters(
         &mut self,
         ctx: RpcContext,
@@ -81,7 +85,7 @@ impl ClusterDiscoveryService for DiscoveryServer {
     }
 }
 
-impl RouteDiscoveryService for DiscoveryServer {
+impl<C: Cache> RouteDiscoveryService for DiscoveryServer<C> {
     fn stream_routes(
         &mut self,
         ctx: RpcContext,
@@ -113,7 +117,7 @@ impl RouteDiscoveryService for DiscoveryServer {
     }
 }
 
-impl EndpointDiscoveryService for DiscoveryServer {
+impl<C: Cache> EndpointDiscoveryService for DiscoveryServer<C> {
     fn stream_endpoints(
         &mut self,
         ctx: RpcContext,
@@ -133,7 +137,7 @@ impl EndpointDiscoveryService for DiscoveryServer {
     }
 }
 
-impl ListenerDiscoveryService for DiscoveryServer {
+impl<C: Cache> ListenerDiscoveryService for DiscoveryServer<C> {
     fn stream_listeners(
         &mut self,
         ctx: RpcContext,
@@ -153,7 +157,7 @@ impl ListenerDiscoveryService for DiscoveryServer {
     }
 }
 
-impl AggregatedDiscoveryService for DiscoveryServer {
+impl<C: Cache> AggregatedDiscoveryService for DiscoveryServer<C> {
     fn stream_aggregated_resources(
         &mut self,
         ctx: RpcContext,
@@ -176,7 +180,7 @@ impl AggregatedDiscoveryService for DiscoveryServer {
     }
 }
 
-impl SecretDiscoveryService for DiscoveryServer {
+impl<C: Cache> SecretDiscoveryService for DiscoveryServer<C> {
     fn stream_secrets(
         &mut self,
         ctx: RpcContext,
