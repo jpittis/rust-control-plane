@@ -30,6 +30,10 @@ struct DiscoveryServer<C: Cache> {
 }
 
 impl<C: Cache> DiscoveryServer<C> {
+    fn new(cache: C) -> DiscoveryServer<C> {
+        DiscoveryServer { cache }
+    }
+
     fn stream(
         &mut self,
         ctx: RpcContext,
@@ -204,8 +208,10 @@ impl<C: Cache> SecretDiscoveryService for DiscoveryServer<C> {
 mod tests {
     use super::*;
 
-    use grpcio::{Environment, ServerBuilder};
-    use rust_xds_grpc::cds_grpc::create_cluster_discovery_service;
+    use grpcio::{ChannelBuilder, EnvBuilder, Environment, ServerBuilder};
+    use rust_xds_grpc::cds_grpc::{
+        create_cluster_discovery_service, ClusterDiscoveryServiceClient,
+    };
     use std::sync::Arc;
 
     use futures::sync::oneshot;
@@ -213,11 +219,32 @@ mod tests {
     use std::io::Read;
     use std::{io, thread};
 
+    #[derive(Clone)]
+    struct DummyCache {
+        resp: DiscoveryResponse,
+    }
+
+    impl DummyCache {
+        fn new(resp: DiscoveryResponse) -> DummyCache {
+            DummyCache { resp }
+        }
+    }
+
+    impl Cache for DummyCache {
+        fn fetch(&mut self, req: DiscoveryRequest) -> DiscoveryResponse {
+            self.resp.clone()
+        }
+    }
+
     #[test]
     fn it_works() {
-        let env = Arc::new(Environment::new(1));
-        let service = create_cluster_discovery_service(DiscoveryServer);
-        let mut server = ServerBuilder::new(env)
+        let mut resp = DiscoveryResponse::new();
+        resp.set_version_info("foobar".to_string());
+        let cache = DummyCache::new(resp.clone());
+        let s_env = Arc::new(Environment::new(1));
+        let discovery_server = DiscoveryServer::new(cache);
+        let service = create_cluster_discovery_service(discovery_server);
+        let mut server = ServerBuilder::new(s_env)
             .register_service(service)
             .bind("127.0.0.1", 9090)
             .build()
@@ -225,13 +252,13 @@ mod tests {
 
         server.start();
 
-        // Block until newline on stdin.
-        let (tx, rx) = oneshot::channel();
-        thread::spawn(move || {
-            let _ = io::stdin().read(&mut [0]).unwrap();
-            tx.send(())
-        });
-        let _ = rx.wait();
+        let c_env = Arc::new(EnvBuilder::new().build());
+        let ch = ChannelBuilder::new(c_env).connect("127.0.0.1:9090");
+        let client = ClusterDiscoveryServiceClient::new(ch);
+
+        let req = DiscoveryRequest::new();
+        assert_eq!(resp, client.fetch_clusters(&req).unwrap());
+
         let _ = server.shutdown().wait();
     }
 }
