@@ -1,5 +1,8 @@
+mod cache;
+
 extern crate futures;
 extern crate grpcio;
+extern crate protobuf;
 extern crate rust_xds_grpc;
 
 #[macro_use]

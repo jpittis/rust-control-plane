@@ -9,3 +9,4 @@ rust-xds-grpc = { git = "https://github.com/jpittis/rust-xds-grpc" }
 grpcio = "0.4.4"
 futures = "0.1.25"
 log = "0.4"
+protobuf = "2.4.0"
