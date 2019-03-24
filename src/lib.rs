@@ -1,4 +1,5 @@
 mod cache;
+mod snapshot;
 
 extern crate futures;
 extern crate grpcio;
