@@ -1,0 +1,3 @@
+#!/bin/bash
+
+envoy -c envoy/config.yaml --service-node lol --service-cluster wat

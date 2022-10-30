@@ -1,0 +1,21 @@
+[submodule "data-plane-api/client_model"]
+	path = data-plane-api/client_model
+	url = https://github.com/prometheus/client_model
+[submodule "data-plane-api/data-plane-api"]
+	path = data-plane-api/data-plane-api
+	url = https://github.com/envoyproxy/data-plane-api
+[submodule "data-plane-api/googleapis"]
+	path = data-plane-api/googleapis
+	url = https://github.com/googleapis/googleapis
+[submodule "data-plane-api/xds"]
+	path = data-plane-api/xds
+	url = https://github.com/cncf/xds
+[submodule "data-plane-api/protoc-gen-validate"]
+	path = data-plane-api/protoc-gen-validate
+	url = https://github.com/lyft/protoc-gen-validate
+[submodule "data-plane-api/opencensus-proto"]
+	path = data-plane-api/opencensus-proto
+	url = https://github.com/census-instrumentation/opencensus-proto
+[submodule "data-plane-api/opentelemetry-proto"]
+	path = data-plane-api/opentelemetry-proto
+	url = https://github.com/open-telemetry/opentelemetry-proto

@@ -1,0 +1,7 @@
+[workspace]
+
+members = [
+  "rust-control-plane",
+  "data-plane-api",
+  "test-harness",
+]

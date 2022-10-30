@@ -1,0 +1,18 @@
+[package]
+name = "rust-control-plane"
+version = "0.1.0"
+edition = "2021"
+description = "Envoy xDS library for writing dynamic control-planes"
+repository = "https://github.com/jpittis/rust-control-plane"
+readme = "README.md"
+license = "Apache-2.0"
+
+[dependencies]
+data-plane-api = { path = "../data-plane-api" }
+tonic = "0.8"
+futures = "0.3"
+tokio = { version = "1", features = ["full"] }
+tokio-stream = "0.1"
+slab = "0.4"
+prost = "0.11"
+log = "0.4"
