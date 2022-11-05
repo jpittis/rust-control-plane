@@ -1,19 +1,23 @@
-mod check;
 mod model;
+mod process;
 
 use data_plane_api::envoy::service::cluster::v3::cluster_discovery_service_server::ClusterDiscoveryServiceServer;
 use data_plane_api::envoy::service::endpoint::v3::endpoint_discovery_service_server::EndpointDiscoveryServiceServer;
 use log::info;
 use rust_control_plane::cache::Cache;
 use rust_control_plane::service::common::Service;
-use rust_control_plane::snapshot::type_url;
-use rust_control_plane::snapshot::{Resource, Resources, Snapshot};
+use std::error::Error;
 use std::sync::Arc;
 use tonic::transport::Server;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
+
+    let mut envoy = process::EnvoyProcess::default();
+    envoy.spawn()?;
+    envoy.poll_until_started().await?;
+
     let addr = "127.0.0.1:5678".parse().unwrap();
     let cache = Arc::new(Cache::new());
 
@@ -48,7 +52,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
 
     info!("test 1");
-    check::poll_until_eq(test1).await?;
+    envoy.poll_until_eq(test1).await?;
 
     info!("test 2");
     let test2 = vec![
@@ -81,7 +85,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
     ];
     cache.set_snapshot("lol", model::to_snapshot(&test2, "test2"));
-    check::poll_until_eq(test2).await?;
+    envoy.poll_until_eq(test2).await?;
 
     Ok(())
 }

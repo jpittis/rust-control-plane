@@ -16,6 +16,7 @@ use data_plane_api::envoy::config::endpoint::v3::{
 };
 use rust_control_plane::snapshot::type_url;
 use rust_control_plane::snapshot::{Resource, Resources, Snapshot};
+use std::collections::HashMap;
 
 pub fn to_snapshot(clusters: &Vec<Cluster>, version: &str) -> Snapshot {
     let mut snapshot = Snapshot::new();
@@ -114,4 +115,27 @@ impl Endpoint {
             ..EndpointPb::default()
         }
     }
+}
+
+pub fn parse_clusters(body: &str) -> Vec<Cluster> {
+    let mut clusters = HashMap::new();
+    body.split("\n")
+        .filter(|line| line.contains("cx_active"))
+        .for_each(|line| {
+            let mut parts = line.split("::");
+            let name = parts.next().unwrap().to_string();
+            let addr_port = parts.next().unwrap();
+            let mut parts = addr_port.split(":");
+            let addr = parts.next().unwrap().to_string();
+            let port = parts.next().unwrap().parse::<u32>().unwrap();
+            let endpoint = Endpoint { addr, port };
+            clusters
+                .entry(name.clone())
+                .and_modify(|cluster: &mut Cluster| cluster.endpoints.push(endpoint.clone()))
+                .or_insert_with(|| Cluster {
+                    name,
+                    endpoints: vec![endpoint],
+                });
+        });
+    Vec::from_iter(clusters.values().cloned())
 }
