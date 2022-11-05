@@ -40,7 +40,7 @@ pub fn to_snapshot(clusters: &Vec<Cluster>, version: &str) -> Snapshot {
 
 const XDS_CLUSTER_NAME: &'static str = "xds";
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Cluster {
     pub name: String,
     pub endpoints: Vec<Endpoint>,
@@ -96,7 +96,7 @@ impl Cluster {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Endpoint {
     pub addr: String,
     pub port: u32,
@@ -137,5 +137,12 @@ pub fn parse_clusters(body: &str) -> Vec<Cluster> {
                     endpoints: vec![endpoint],
                 });
         });
-    Vec::from_iter(clusters.values().cloned())
+    let mut vec = Vec::from_iter(clusters.values().cloned());
+    sort_clusters(&mut vec);
+    vec
+}
+
+pub fn sort_clusters(vec: &mut Vec<Cluster>) {
+    vec.iter_mut().for_each(|cluster| cluster.endpoints.sort());
+    vec.sort();
 }

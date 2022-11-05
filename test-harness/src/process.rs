@@ -1,10 +1,24 @@
 use crate::model::{parse_clusters, Cluster};
-use log::info;
-use std::error::Error;
+use pretty_assertions::Comparison;
+use std::fmt;
 use std::future::Future;
 use std::io;
-use std::process::{Child, Command};
+use std::process::{Child, Command, Stdio};
 use tokio::time::{Duration, Instant};
+
+pub enum PollError {
+    Reqwest(reqwest::Error),
+    ClustersNotEqual(Vec<Cluster>, Vec<Cluster>),
+}
+
+impl fmt::Debug for PollError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PollError::Reqwest(err) => write!(f, "{}", err),
+            PollError::ClustersNotEqual(a, b) => write!(f, "{}", Comparison::new(&a, &b)),
+        }
+    }
+}
 
 const CLUSTERS_URL: &'static str = "http://127.0.0.1:9901/clusters";
 
@@ -33,34 +47,40 @@ impl EnvoyProcess {
             &self.service_node,
             "--service-cluster",
             &self.service_cluster,
-        ]);
+        ])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
         cmd
     }
 
-    pub async fn poll_until_started(&self) -> Result<(), Box<dyn Error>> {
+    pub async fn poll_until_started(&self) -> Result<(), PollError> {
         self.poll_until(|| async {
-            get_clusters().await?;
+            get_clusters()
+                .await
+                .map_err(|err| PollError::Reqwest(err))?;
             Ok(())
         })
         .await
     }
 
-    pub async fn poll_until_eq(&self, expected: Vec<Cluster>) -> Result<(), Box<dyn Error>> {
+    pub async fn poll_until_eq(&self, expected: Vec<Cluster>) -> Result<(), PollError> {
         self.poll_until(|| async {
-            let clusters = get_clusters().await?;
+            let clusters = get_clusters()
+                .await
+                .map_err(|err| PollError::Reqwest(err))?;
             if clusters == expected {
                 Ok(())
             } else {
-                Err("Not equal".into())
+                Err(PollError::ClustersNotEqual(clusters, expected.clone()))
             }
         })
         .await
     }
 
-    pub async fn poll_until<T, F, Fut>(&self, mut f: F) -> Result<T, Box<dyn std::error::Error>>
+    pub async fn poll_until<T, F, Fut, E>(&self, mut f: F) -> Result<T, E>
     where
         F: FnMut() -> Fut,
-        Fut: Future<Output = Result<T, Box<dyn Error>>>,
+        Fut: Future<Output = Result<T, E>>,
     {
         let start = Instant::now();
         let mut failed_attempts = 0;
@@ -69,7 +89,6 @@ impl EnvoyProcess {
                 Ok(val) => return Ok(val),
                 Err(err) => {
                     failed_attempts += 1;
-                    info!("failed_attempts {}", failed_attempts);
                     let backoff = self.poll_backoff;
                     if Instant::now().duration_since(start) > self.poll_timeout {
                         return Err(err);
@@ -105,7 +124,7 @@ impl Default for EnvoyProcess {
     }
 }
 
-async fn get_clusters() -> Result<Vec<Cluster>, Box<dyn Error>> {
+async fn get_clusters() -> Result<Vec<Cluster>, reqwest::Error> {
     let body = reqwest::get(CLUSTERS_URL).await?.text().await?;
     Ok(parse_clusters(&body))
 }

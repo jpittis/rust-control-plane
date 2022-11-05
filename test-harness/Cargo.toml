@@ -11,3 +11,4 @@ env_logger = "0.9"
 reqwest = "0.11"
 tonic = "0.8"
 tokio = { version = "1", features = ["full"] }
+pretty_assertions = "1.3"
