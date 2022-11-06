@@ -1,4 +1,4 @@
-use crate::model::{parse_clusters, Cluster};
+use crate::model::{parse_clusters, sort_clusters, Cluster, Endpoint};
 use pretty_assertions::Comparison;
 use std::fmt;
 use std::future::Future;
@@ -63,7 +63,23 @@ impl EnvoyProcess {
         .await
     }
 
-    pub async fn poll_until_eq(&self, expected: Vec<Cluster>) -> Result<(), PollError> {
+    pub async fn poll_until_eq(&self, mut expected: Vec<Cluster>) -> Result<(), PollError> {
+        // Append the default static xds cluster that's always present.
+        expected.push(Cluster {
+            name: "xds".to_string(),
+            hidden: false,
+            endpoints: vec![Endpoint {
+                addr: "127.0.0.1".to_string(),
+                port: 5678,
+            }],
+        });
+        // Filter out hidden clusters.
+        expected = expected
+            .into_iter()
+            .filter(|cluster| !cluster.hidden)
+            .collect();
+        // Sort to make sure the clusters are still in the right order.
+        sort_clusters(&mut expected);
         self.poll_until(|| async {
             let clusters = get_clusters()
                 .await

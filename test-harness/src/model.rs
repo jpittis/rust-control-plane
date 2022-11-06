@@ -24,9 +24,11 @@ pub fn to_snapshot(clusters: &Vec<Cluster>, version: &str) -> Snapshot {
     let mut endpoint_set = Resources::new(version.to_string());
 
     clusters.iter().for_each(|cluster| {
-        cluster_set
-            .items
-            .insert(cluster.name.clone(), Resource::Cluster(cluster.to_proto()));
+        if !cluster.hidden {
+            cluster_set
+                .items
+                .insert(cluster.name.clone(), Resource::Cluster(cluster.to_proto()));
+        }
         endpoint_set.items.insert(
             cluster.name.clone(),
             Resource::Endpoint(cluster.endpoints_to_proto()),
@@ -44,6 +46,7 @@ const XDS_CLUSTER_NAME: &'static str = "xds";
 pub struct Cluster {
     pub name: String,
     pub endpoints: Vec<Endpoint>,
+    pub hidden: bool,
 }
 
 impl Cluster {
@@ -134,6 +137,7 @@ pub fn parse_clusters(body: &str) -> Vec<Cluster> {
                 .and_modify(|cluster: &mut Cluster| cluster.endpoints.push(endpoint.clone()))
                 .or_insert_with(|| Cluster {
                     name,
+                    hidden: false,
                     endpoints: vec![endpoint],
                 });
         });
