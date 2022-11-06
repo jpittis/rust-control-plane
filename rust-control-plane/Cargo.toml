@@ -8,7 +8,7 @@ readme = "README.md"
 license = "Apache-2.0"
 
 [dependencies]
-data-plane-api = { path = "../data-plane-api" }
+data-plane-api = { version = "0.1", path = "../data-plane-api" }
 tonic = "0.8"
 futures = "0.3"
 tokio = { version = "1", features = ["full"] }
