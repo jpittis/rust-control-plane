@@ -1,9 +1,11 @@
 pub mod type_url;
 
 use data_plane_api::envoy::config::cluster::v3::Cluster;
+use data_plane_api::envoy::config::core::v3::TypedExtensionConfig;
 use data_plane_api::envoy::config::endpoint::v3::ClusterLoadAssignment;
 use data_plane_api::envoy::config::listener::v3::Listener;
-use data_plane_api::envoy::config::route::v3::Route;
+use data_plane_api::envoy::config::route::v3::RouteConfiguration;
+use data_plane_api::envoy::config::route::v3::ScopedRouteConfiguration;
 use data_plane_api::envoy::extensions::transport_sockets::tls::v3::Secret;
 use data_plane_api::envoy::service::runtime::v3::Runtime;
 use data_plane_api::google::protobuf::Any;
@@ -56,10 +58,12 @@ impl Resources {
 pub enum Resource {
     Cluster(Cluster),
     Endpoint(ClusterLoadAssignment),
-    Route(Route),
+    Route(RouteConfiguration),
     Listener(Listener),
     Secret(Secret),
     Runtime(Runtime),
+    ScopedRoute(ScopedRouteConfiguration),
+    ExtensionConfig(TypedExtensionConfig),
 }
 
 impl Resource {
@@ -88,6 +92,14 @@ impl Resource {
             Resource::Runtime(runtime) => Any {
                 type_url: type_url::RUNTIME.to_string(),
                 value: runtime.encode_to_vec(),
+            },
+            Resource::ScopedRoute(route) => Any {
+                type_url: type_url::SCOPED_ROUTE.to_string(),
+                value: route.encode_to_vec(),
+            },
+            Resource::ExtensionConfig(config) => Any {
+                type_url: type_url::EXTENSION_CONFIG.to_string(),
+                value: config.encode_to_vec(),
             },
         }
     }

@@ -10,6 +10,8 @@ pub const ROUTE: &'static str = prefix!("envoy.config.route.v3.RouteConfiguratio
 pub const LISTENER: &'static str = prefix!("envoy.config.listener.v3.Listener");
 pub const SECRET: &'static str = prefix!("envoy.extensions.transport_sockets.tls.v3.Secret");
 pub const RUNTIME: &'static str = prefix!("envoy.service.runtime.v3.Runtime");
+pub const SCOPED_ROUTE: &'static str = prefix!("envoy.config.route.v3.ScopedRouteConfiguration");
+pub const EXTENSION_CONFIG: &'static str = prefix!("envoy.config.core.v3.TypedExtensionConfig");
 
 #[cfg(test)]
 mod tests {
