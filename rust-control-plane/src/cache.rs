@@ -58,7 +58,6 @@ impl Cache {
     ) -> Option<usize> {
         let mut inner = self.inner.lock().unwrap();
         let node_id = hash_id(&req.node);
-        info!("creating watch for node {}", &node_id);
         inner.update_node_status(&node_id, &req.node);
         if let Some(snapshot) = inner.snapshots.get(&node_id) {
             let resources = snapshot.resources(&req.type_url);
@@ -66,25 +65,25 @@ impl Cache {
             let type_known_resource_names = known_resource_names.get(&req.type_url);
             // Check if a different set of resources has been requested.
             if inner.is_requesting_new_resources(&req, resources, type_known_resource_names) {
-                info!("resource diff");
+                info!("responding: resource diff");
                 respond(req, tx, resources, &version);
                 return None;
             }
             if req.version_info == version {
                 // Client is already at the latest version, so we have nothing to respond with.
                 // Set a watch because we may receive a new version in the future.
-                info!("latest version");
+                info!("set watch: latest version");
                 Some(inner.set_watch(&node_id, req, tx))
             } else {
                 // The version has changed, so we should respond.
-                info!("new version");
+                info!("responding: new version");
                 respond(req, tx, resources, &version);
                 None
             }
         } else {
             // No snapshot exists for this node, so we have nothing to respond with.
             // Set a watch because we may receive a snapshot for this node in the future.
-            info!("no snapshot");
+            info!("set watch: no snapshot");
             Some(inner.set_watch(&node_id, req, tx))
         }
     }
@@ -115,6 +114,7 @@ impl Cache {
                 let watch = status.watches.remove(watch_id);
                 let resources = snapshot.resources(&watch.req.type_url);
                 let version = snapshot.version(&watch.req.type_url);
+                info!("watch triggered version={}", version);
                 respond(&watch.req, watch.tx, resources, &version);
             }
         }

@@ -15,8 +15,6 @@ pub async fn handle_stream(
     type_url: &str,
     cache: Arc<Cache>,
 ) {
-    info!("new stream for node");
-
     let mut nonce: i64 = 0;
     let mut known_resource_names = HashMap::new();
     let mut watches = FuturesUnordered::new();
@@ -24,18 +22,14 @@ pub async fn handle_stream(
     loop {
         tokio::select! {
             request = stream.next() => {
-                info!("receiving request");
                 let req = request.unwrap().unwrap();
-                info!("version_info: {:?}", req.version_info);
-                info!("resource_names: {:?}", req.resource_names);
-                info!("type_url: {:?}", req.type_url);
-                info!("response_nonce: {:?}", req.response_nonce);
+                info!("received request version={:?} type={:?} resources={:?} nonce={:?}",
+                      req.version_info, &req.type_url[20..], req.resource_names, req.response_nonce);
                 let (tx, rx) = oneshot::channel();
                 cache.create_watch(&req, tx, &known_resource_names);
                 watches.push(rx);
             }
             Some(response) = watches.next() => {
-                info!("sending response");
                 let mut rep = response.unwrap();
                 nonce += 1;
                 rep.nonce = nonce.to_string();
