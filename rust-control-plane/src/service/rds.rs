@@ -28,8 +28,8 @@ impl RouteDiscoveryService for Service {
 
     async fn fetch_routes(
         &self,
-        _: Request<DiscoveryRequest>,
+        req: Request<DiscoveryRequest>,
     ) -> Result<Response<DiscoveryResponse>, Status> {
-        unimplemented!()
+        self.fetch(req.get_ref(), ROUTE)
     }
 }

@@ -23,10 +23,10 @@ impl Service {
 
     pub fn stream(
         &self,
-        request: Request<Streaming<DiscoveryRequest>>,
+        req: Request<Streaming<DiscoveryRequest>>,
         type_url: &'static str,
     ) -> Result<Response<StreamResponse<DiscoveryResponse>>, Status> {
-        let input = request.into_inner();
+        let input = req.into_inner();
         let (tx, rx) = mpsc::channel(1);
         let output = ReceiverStream::new(rx);
         let cache_clone = self.cache.clone();
@@ -34,5 +34,16 @@ impl Service {
         Ok(Response::new(
             Box::pin(output) as StreamResponse<DiscoveryResponse>
         ))
+    }
+
+    pub fn fetch(
+        &self,
+        req: &DiscoveryRequest,
+        type_url: &'static str,
+    ) -> Result<Response<DiscoveryResponse>, Status> {
+        match self.cache.fetch(req, type_url) {
+            Some(resp) => Ok(Response::new(resp)),
+            None => Err(Status::not_found("Resource not found")),
+        }
     }
 }

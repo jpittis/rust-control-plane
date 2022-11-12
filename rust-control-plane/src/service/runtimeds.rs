@@ -28,8 +28,8 @@ impl RuntimeDiscoveryService for Service {
 
     async fn fetch_runtime(
         &self,
-        _: Request<DiscoveryRequest>,
+        req: Request<DiscoveryRequest>,
     ) -> Result<Response<DiscoveryResponse>, Status> {
-        unimplemented!()
+        self.fetch(req.get_ref(), RUNTIME)
     }
 }

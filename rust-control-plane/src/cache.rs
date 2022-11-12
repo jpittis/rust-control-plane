@@ -119,6 +119,23 @@ impl Cache {
             }
         }
     }
+
+    pub fn fetch(
+        &self,
+        req: &DiscoveryRequest,
+        type_url: &'static str,
+    ) -> Option<DiscoveryResponse> {
+        let inner = self.inner.lock().unwrap();
+        let node_id = hash_id(&req.node);
+        let snapshot = inner.snapshots.get(&node_id)?;
+        let version = snapshot.version(&req.type_url);
+        if req.version_info == version {
+            // TODO: This is semantically  different than "not found".
+            return None;
+        }
+        let resources = snapshot.resources(&type_url);
+        return Some(build_response(req, resources, version));
+    }
 }
 
 impl Inner {

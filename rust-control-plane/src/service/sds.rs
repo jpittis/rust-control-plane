@@ -28,8 +28,8 @@ impl SecretDiscoveryService for Service {
 
     async fn fetch_secrets(
         &self,
-        _: Request<DiscoveryRequest>,
+        req: Request<DiscoveryRequest>,
     ) -> Result<Response<DiscoveryResponse>, Status> {
-        unimplemented!()
+        self.fetch(req.get_ref(), SECRET)
     }
 }

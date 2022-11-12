@@ -28,8 +28,8 @@ impl ExtensionConfigDiscoveryService for Service {
 
     async fn fetch_extension_configs(
         &self,
-        _: Request<DiscoveryRequest>,
+        req: Request<DiscoveryRequest>,
     ) -> Result<Response<DiscoveryResponse>, Status> {
-        unimplemented!()
+        self.fetch(req.get_ref(), EXTENSION_CONFIG)
     }
 }

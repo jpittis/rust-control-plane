@@ -28,8 +28,8 @@ impl ListenerDiscoveryService for Service {
 
     async fn fetch_listeners(
         &self,
-        _: Request<DiscoveryRequest>,
+        req: Request<DiscoveryRequest>,
     ) -> Result<Response<DiscoveryResponse>, Status> {
-        unimplemented!()
+        self.fetch(req.get_ref(), LISTENER)
     }
 }
