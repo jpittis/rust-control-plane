@@ -14,6 +14,8 @@ pub const RUNTIME: &'static str = prefix!("envoy.service.runtime.v3.Runtime");
 pub const SCOPED_ROUTE: &'static str = prefix!("envoy.config.route.v3.ScopedRouteConfiguration");
 pub const EXTENSION_CONFIG: &'static str = prefix!("envoy.config.core.v3.TypedExtensionConfig");
 
+pub const ANY_TYPE: &'static str = "";
+
 #[cfg(test)]
 mod tests {
     use super::*;
