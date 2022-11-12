@@ -1,3 +1,4 @@
+mod ads;
 mod cds;
 pub mod common;
 mod eds;
@@ -8,3 +9,4 @@ mod runtimeds;
 mod scopedrouteds;
 mod sds;
 mod stream;
+mod virtualhostds;
