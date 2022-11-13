@@ -21,15 +21,13 @@ struct Inner {
 
 #[derive(Debug)]
 struct NodeStatus {
-    node: Node,
     last_request_time: Instant,
     watches: Slab<Watch>,
 }
 
 impl NodeStatus {
-    fn new(node: Node) -> Self {
+    fn new() -> Self {
         Self {
-            node,
             last_request_time: Instant::now(),
             watches: Slab::new(),
         }
@@ -58,7 +56,7 @@ impl Cache {
     ) -> Option<usize> {
         let mut inner = self.inner.lock().unwrap();
         let node_id = hash_id(&req.node);
-        inner.update_node_status(&node_id, &req.node);
+        inner.update_node_status(&node_id);
         if let Some(snapshot) = inner.snapshots.get(&node_id) {
             let resources = snapshot.resources(&req.type_url);
             let version = snapshot.version(&req.type_url);
@@ -136,6 +134,15 @@ impl Cache {
         let resources = snapshot.resources(&type_url);
         return Some(build_response(req, resources, version));
     }
+
+    pub fn node_status(&self) -> HashMap<String, Instant> {
+        let inner = self.inner.lock().unwrap();
+        inner
+            .status
+            .iter()
+            .map(|(k, v)| (k.clone(), v.last_request_time))
+            .collect()
+    }
 }
 
 impl Inner {
@@ -160,11 +167,11 @@ impl Inner {
         status.watches.insert(watch)
     }
 
-    fn update_node_status(&mut self, node_id: &str, node: &Option<Node>) {
+    fn update_node_status(&mut self, node_id: &str) {
         self.status
             .entry(node_id.to_string())
             .and_modify(|entry| entry.last_request_time = Instant::now())
-            .or_insert_with(|| NodeStatus::new(node.as_ref().unwrap().clone()));
+            .or_insert_with(|| NodeStatus::new());
     }
 
     fn is_requesting_new_resources(
