@@ -37,7 +37,7 @@ impl NodeStatus {
 #[derive(Debug)]
 struct Watch {
     req: DiscoveryRequest,
-    tx: oneshot::Sender<DiscoveryResponse>,
+    tx: oneshot::Sender<(DiscoveryRequest, DiscoveryResponse)>,
 }
 
 pub enum FetchError {
@@ -56,7 +56,7 @@ impl Cache {
     pub fn create_watch(
         &self,
         req: &DiscoveryRequest,
-        tx: oneshot::Sender<DiscoveryResponse>,
+        tx: oneshot::Sender<(DiscoveryRequest, DiscoveryResponse)>,
         known_resource_names: &HashMap<String, HashSet<String>>,
     ) -> Option<usize> {
         let mut inner = self.inner.lock().unwrap();
@@ -161,7 +161,7 @@ impl Inner {
         &mut self,
         node_id: &str,
         req: &DiscoveryRequest,
-        tx: oneshot::Sender<DiscoveryResponse>,
+        tx: oneshot::Sender<(DiscoveryRequest, DiscoveryResponse)>,
     ) -> usize {
         let watch = Watch {
             req: req.clone(),
@@ -240,10 +240,10 @@ fn build_response(
 
 fn respond(
     req: &DiscoveryRequest,
-    tx: oneshot::Sender<DiscoveryResponse>,
+    tx: oneshot::Sender<(DiscoveryRequest, DiscoveryResponse)>,
     resources: Option<&Resources>,
     version: &str,
 ) {
     let rep = build_response(req, resources, version);
-    tx.send(rep).unwrap();
+    tx.send((req.clone(), rep)).unwrap();
 }

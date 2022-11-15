@@ -4,11 +4,16 @@ use data_plane_api::envoy::service::discovery::v3::{DiscoveryRequest, DiscoveryR
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use log::info;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tonic::{Status, Streaming};
+
+struct LastResponse {
+    nonce: i64,
+    resource_names: Vec<String>,
+}
 
 pub async fn handle_stream(
     mut stream: Streaming<DiscoveryRequest>,
@@ -17,9 +22,10 @@ pub async fn handle_stream(
     cache: Arc<Cache>,
 ) {
     let mut nonce: i64 = 0;
-    let mut known_resource_names = HashMap::new();
+    let mut known_resource_names: HashMap<String, HashSet<String>> = HashMap::new();
     let mut watches = FuturesUnordered::new();
     let mut node = None;
+    let mut last_responses: HashMap<String, LastResponse> = HashMap::new();
 
     loop {
         tokio::select! {
@@ -46,6 +52,21 @@ pub async fn handle_stream(
                     req.type_url = type_url.to_string();
                 }
 
+                // If this is an ack of a previous response, record that the client has received
+                // the resource names for that response.
+                if let Some(last_response) = last_responses.get(&req.type_url) {
+                    if last_response.nonce == 0 || last_response.nonce == nonce {
+                        let entry = known_resource_names.entry(req.type_url.clone());
+                        entry
+                            .and_modify(|entry| {
+                                last_response.resource_names.iter().for_each(|name| {
+                                    entry.insert(name.clone());
+                                })
+                            })
+                            .or_insert_with(|| HashSet::new());
+                    }
+                }
+
                 let (tx, rx) = oneshot::channel();
                 cache.create_watch(&req, tx, &known_resource_names);
                 watches.push(rx);
@@ -53,8 +74,13 @@ pub async fn handle_stream(
             Some(response) = watches.next() => {
                 let mut rep = response.unwrap();
                 nonce += 1;
-                rep.nonce = nonce.to_string();
-                tx.send(Ok(rep)).await.unwrap();
+                rep.1.nonce = nonce.to_string();
+                let last_response = LastResponse{
+                    nonce,
+                    resource_names: rep.0.resource_names,
+                };
+                last_responses.insert(rep.0.type_url, last_response);
+                tx.send(Ok(rep.1)).await.unwrap();
             }
         }
     }
