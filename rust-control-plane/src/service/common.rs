@@ -1,4 +1,4 @@
-use crate::cache::Cache;
+use crate::cache::{Cache, FetchError};
 use crate::service::stream::handle_stream;
 use data_plane_api::envoy::service::discovery::v3::{DiscoveryRequest, DiscoveryResponse};
 use futures::Stream;
@@ -42,8 +42,11 @@ impl Service {
         type_url: &'static str,
     ) -> Result<Response<DiscoveryResponse>, Status> {
         match self.cache.fetch(req, type_url) {
-            Some(resp) => Ok(Response::new(resp)),
-            None => Err(Status::not_found("Resource not found")),
+            Ok(resp) => Ok(Response::new(resp)),
+            Err(FetchError::NotFound) => Err(Status::not_found("Resource not found for node")),
+            Err(FetchError::VersionUpToDate) => {
+                Err(Status::already_exists("Version already up to date"))
+            }
         }
     }
 }

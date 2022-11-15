@@ -40,6 +40,11 @@ struct Watch {
     tx: oneshot::Sender<DiscoveryResponse>,
 }
 
+pub enum FetchError {
+    VersionUpToDate,
+    NotFound,
+}
+
 impl Cache {
     pub fn new() -> Self {
         Self {
@@ -122,17 +127,16 @@ impl Cache {
         &self,
         req: &DiscoveryRequest,
         type_url: &'static str,
-    ) -> Option<DiscoveryResponse> {
+    ) -> Result<DiscoveryResponse, FetchError> {
         let inner = self.inner.lock().unwrap();
         let node_id = hash_id(&req.node);
-        let snapshot = inner.snapshots.get(&node_id)?;
+        let snapshot = inner.snapshots.get(&node_id).ok_or(FetchError::NotFound)?;
         let version = snapshot.version(&req.type_url);
         if req.version_info == version {
-            // TODO: This is semantically  different than "not found".
-            return None;
+            return Err(FetchError::VersionUpToDate);
         }
         let resources = snapshot.resources(&type_url);
-        return Some(build_response(req, resources, version));
+        return Ok(build_response(req, resources, version));
     }
 
     pub fn node_status(&self) -> HashMap<String, Instant> {
