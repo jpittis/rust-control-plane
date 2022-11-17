@@ -8,8 +8,15 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
       - name: Install envoy
         run: brew install envoy
-      - name: Integration test1
+      - name: Install protoc
+        run: brew install protoc
+      - name: Build
+        run: cargo build
+      - name: Test1
         working-directory: ./test-harness
         run: RUST_LOG=info cargo run -- -n test1
