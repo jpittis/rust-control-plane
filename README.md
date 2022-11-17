@@ -1,5 +1,7 @@
 This project provides libraries for implementing Envoy control-planes in Rust.
 
+[![test](https://github.com/jpittis/rust-control-plane/actions/workflows/test.yaml/badge.svg)](https://github.com/jpittis/rust-control-plane/actions/workflows/test.yaml)
+
 - `data-plane-api/` (published to crates.io as
   [data-plane-api](https://crates.io/crates/data-plane-api)) provides prost and tonic
   generated protobuf and gRPC implementations of Envoy's
