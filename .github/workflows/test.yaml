@@ -1,0 +1,15 @@
+name: test
+on:
+  push:
+    branches:
+      - master
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install envoy
+        run: brew install envoy
+      - name: Integration test1
+        working-directory: ./test-harness
+        run: RUST_LOG=info cargo run -- -n test1
