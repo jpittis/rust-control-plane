@@ -11,3 +11,11 @@ This project provides libraries for implementing Envoy control-planes in Rust.
   [go-control-plane](https://github.com/envoyproxy/go-control-plane)). Not complete, nor
   production ready yet.
 - `test-harness` provides integration tests.
+
+### Roadmap
+
+- [x] Served a few xDS requests successfully 
+- [ ] Implements most features including ADS and delta streams
+- [ ] Correct, and unlikely to crash
+- [ ] Extensible (traits), and documented <- consider using it after this?
+- [ ] Performance
