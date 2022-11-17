@@ -216,6 +216,7 @@ version = "0.1.0"
 dependencies = [
  "glob",
  "prost",
+ "prost-build",
  "tonic",
  "tonic-build",
 ]

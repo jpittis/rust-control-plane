@@ -20,6 +20,14 @@ jobs:
         run: brew install protobuf
       - name: Build
         run: cargo build
-      - name: Test1
+      - name: Unit tests
+        run: cargo test --all
+      - name: Integration test1
         working-directory: ./test-harness
         run: RUST_LOG=info cargo run -- -n test1
+      - name: Integration test2
+        working-directory: ./test-harness
+        run: RUST_LOG=info cargo run -- -n test2
+      - name: Integration test3
+        working-directory: ./test-harness
+        run: RUST_LOG=info cargo run -- -n test3

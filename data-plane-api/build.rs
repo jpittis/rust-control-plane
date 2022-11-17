@@ -7,12 +7,15 @@ fn main() -> io::Result<()> {
         .unwrap()
         .filter_map(Result::ok)
         .collect();
+    let mut config = prost_build::Config::new();
+    config.disable_comments(&["."]);
     tonic_build::configure()
         .build_server(true)
         .build_client(true)
         .compile_well_known_types(true)
         .include_file("mod.rs")
-        .compile(
+        .compile_with_config(
+            config,
             &protos,
             &[
                 "data-plane-api",

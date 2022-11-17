@@ -13,4 +13,5 @@ tonic = "0.8"
 
 [build-dependencies]
 tonic-build = "0.8"
+prost-build = "0.11"
 glob = "0.3"
