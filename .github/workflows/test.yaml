@@ -14,7 +14,7 @@ jobs:
       - name: Install envoy
         run: brew install envoy
       - name: Install protoc
-        run: brew install protoc
+        run: brew install protobuf
       - name: Build
         run: cargo build
       - name: Test1
