@@ -188,7 +188,7 @@ impl Inner {
             if let Some(known_resource_names) = type_known_resource_names {
                 let mut diff = Vec::new();
                 for name in &req.resource_names {
-                    if known_resource_names.contains(name) {
+                    if !known_resource_names.contains(name) {
                         diff.push(name)
                     }
                 }
