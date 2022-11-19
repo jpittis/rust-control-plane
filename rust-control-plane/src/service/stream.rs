@@ -45,7 +45,7 @@ pub async fn handle_stream(
                 if type_url == ANY_TYPE && req.type_url == "" {
                     // Type URL is required for ADS (ANY_TYPE) because we can't tell from just the
                     // gRPC method which resource this request is for.
-                    respond_error(tx, Status::invalid_argument("type URL is required for ADS")).await;
+                    error(tx, Status::invalid_argument("type URL is required for ADS")).await;
                     return;
                 } else if req.type_url == "" {
                     // Type URL is otherwise optional, but let's set it for consistency.
@@ -86,6 +86,6 @@ pub async fn handle_stream(
     }
 }
 
-async fn respond_error(tx: mpsc::Sender<Result<DiscoveryResponse, Status>>, status: Status) {
+async fn error(tx: mpsc::Sender<Result<DiscoveryResponse, Status>>, status: Status) {
     tx.send(Err(status)).await.unwrap();
 }
