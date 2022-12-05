@@ -30,6 +30,6 @@ impl ExtensionConfigDiscoveryService for Service {
         &self,
         req: Request<DiscoveryRequest>,
     ) -> Result<Response<DiscoveryResponse>, Status> {
-        self.fetch(req.get_ref(), EXTENSION_CONFIG)
+        self.fetch(req.get_ref(), EXTENSION_CONFIG).await
     }
 }

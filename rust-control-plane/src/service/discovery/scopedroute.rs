@@ -30,6 +30,6 @@ impl ScopedRoutesDiscoveryService for Service {
         &self,
         req: Request<DiscoveryRequest>,
     ) -> Result<Response<DiscoveryResponse>, Status> {
-        self.fetch(req.get_ref(), SCOPED_ROUTE)
+        self.fetch(req.get_ref(), SCOPED_ROUTE).await
     }
 }

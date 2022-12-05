@@ -30,6 +30,6 @@ impl ListenerDiscoveryService for Service {
         &self,
         req: Request<DiscoveryRequest>,
     ) -> Result<Response<DiscoveryResponse>, Status> {
-        self.fetch(req.get_ref(), LISTENER)
+        self.fetch(req.get_ref(), LISTENER).await
     }
 }

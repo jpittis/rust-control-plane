@@ -68,7 +68,7 @@ pub async fn handle_stream(
                 }
 
                 let (tx, rx) = oneshot::channel();
-                cache.create_watch(&req, tx, &known_resource_names);
+                cache.create_watch(&req, tx, &known_resource_names).await;
                 watches.push(rx);
             }
             Some(response) = watches.next() => {

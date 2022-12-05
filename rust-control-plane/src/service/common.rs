@@ -36,12 +36,12 @@ impl Service {
         ))
     }
 
-    pub fn fetch(
+    pub async fn fetch(
         &self,
         req: &DiscoveryRequest,
         type_url: &'static str,
     ) -> Result<Response<DiscoveryResponse>, Status> {
-        match self.cache.fetch(req, type_url) {
+        match self.cache.fetch(req, type_url).await {
             Ok(resp) => Ok(Response::new(resp)),
             Err(FetchError::NotFound) => Err(Status::not_found("Resource not found for node")),
             Err(FetchError::VersionUpToDate) => {

@@ -22,10 +22,12 @@ pub struct Test {
 }
 
 impl Test {
-    pub fn new(init_snapshot: Option<Vec<Cluster>>) -> Self {
+    pub async fn new(init_snapshot: Option<Vec<Cluster>>) -> Self {
         let cache = Arc::new(Cache::new());
         if let Some(clusters) = init_snapshot {
-            cache.set_snapshot(NODE, model::to_snapshot(&clusters, "init"));
+            cache
+                .set_snapshot(NODE, model::to_snapshot(&clusters, "init"))
+                .await;
         }
         Self {
             addr: XDS_ADDR.to_string(),

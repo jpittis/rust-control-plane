@@ -4,9 +4,9 @@ use data_plane_api::envoy::service::discovery::v3::{DiscoveryRequest, DiscoveryR
 use log::info;
 use slab::Slab;
 use std::collections::{HashMap, HashSet};
-use std::sync::Mutex;
 use std::time::Instant;
 use tokio::sync::oneshot;
+use tokio::sync::Mutex;
 
 #[derive(Debug)]
 pub struct Cache {
@@ -53,13 +53,13 @@ impl Cache {
     }
 
     // Either responds on tx immediately, or sets a watch, returning a watch ID.
-    pub fn create_watch(
+    pub async fn create_watch(
         &self,
         req: &DiscoveryRequest,
         tx: oneshot::Sender<(DiscoveryRequest, DiscoveryResponse)>,
         known_resource_names: &HashMap<String, HashSet<String>>,
     ) -> Option<usize> {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock().await;
         let node_id = hash_id(&req.node);
         inner.update_node_status(&node_id);
         if let Some(snapshot) = inner.snapshots.get(&node_id) {
@@ -92,8 +92,8 @@ impl Cache {
     }
 
     // Deletes a watch previously created with create_watch.
-    pub fn cancel_watch(&mut self, node: &str, watch_id: usize) {
-        let mut inner = self.inner.lock().unwrap();
+    pub async fn cancel_watch(&mut self, node: &str, watch_id: usize) {
+        let mut inner = self.inner.lock().await;
         if let Some(status) = inner.status.get_mut(node) {
             status.watches.remove(watch_id);
         }
@@ -101,8 +101,8 @@ impl Cache {
 
     // Updates snapshot associated with a given node so that future requests receive it.
     // Triggers existing watches for the given node.
-    pub fn set_snapshot(&self, node: &str, snapshot: Snapshot) {
-        let mut inner = self.inner.lock().unwrap();
+    pub async fn set_snapshot(&self, node: &str, snapshot: Snapshot) {
+        let mut inner = self.inner.lock().await;
         inner.snapshots.insert(node.to_string(), snapshot.clone());
         if let Some(status) = inner.status.get_mut(node) {
             let mut to_delete = Vec::new();
@@ -123,12 +123,12 @@ impl Cache {
         }
     }
 
-    pub fn fetch(
-        &self,
-        req: &DiscoveryRequest,
+    pub async fn fetch<'a>(
+        &'a self,
+        req: &'a DiscoveryRequest,
         type_url: &'static str,
     ) -> Result<DiscoveryResponse, FetchError> {
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock().await;
         let node_id = hash_id(&req.node);
         let snapshot = inner.snapshots.get(&node_id).ok_or(FetchError::NotFound)?;
         let version = snapshot.version(&req.type_url);
@@ -139,8 +139,8 @@ impl Cache {
         return Ok(build_response(req, resources, version));
     }
 
-    pub fn node_status(&self) -> HashMap<String, Instant> {
-        let inner = self.inner.lock().unwrap();
+    pub async fn node_status(&self) -> HashMap<String, Instant> {
+        let inner = self.inner.lock().await;
         inner
             .status
             .iter()

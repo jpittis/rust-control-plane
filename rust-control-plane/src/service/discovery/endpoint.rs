@@ -30,6 +30,6 @@ impl EndpointDiscoveryService for Service {
         &self,
         req: Request<DiscoveryRequest>,
     ) -> Result<Response<DiscoveryResponse>, Status> {
-        self.fetch(req.get_ref(), ENDPOINT)
+        self.fetch(req.get_ref(), ENDPOINT).await
     }
 }

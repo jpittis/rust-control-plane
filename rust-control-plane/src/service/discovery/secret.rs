@@ -30,6 +30,6 @@ impl SecretDiscoveryService for Service {
         &self,
         req: Request<DiscoveryRequest>,
     ) -> Result<Response<DiscoveryResponse>, Status> {
-        self.fetch(req.get_ref(), SECRET)
+        self.fetch(req.get_ref(), SECRET).await
     }
 }

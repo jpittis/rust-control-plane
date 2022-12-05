@@ -22,15 +22,15 @@ async fn main() {
     let args = Args::parse();
     match args.name.as_str() {
         "test1" => {
-            let mut test1 = Test::new(tests::test1::init());
+            let mut test1 = Test::new(tests::test1::init()).await;
             test1.run(tests::test1::test).await;
         }
         "test2" => {
-            let mut test2 = Test::new(tests::test2::init());
+            let mut test2 = Test::new(tests::test2::init()).await;
             test2.run(tests::test2::test).await;
         }
         "test3" => {
-            let mut test3 = Test::new(tests::test3::init());
+            let mut test3 = Test::new(tests::test3::init()).await;
             test3.run(tests::test3::test).await;
         }
         _ => log::error!("Unknown test name {}", args.name),

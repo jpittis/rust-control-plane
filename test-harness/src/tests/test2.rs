@@ -38,7 +38,9 @@ pub async fn test(cache: Arc<Cache>, envoy: EnvoyProcess) {
         },
     ];
     info!("setting snapshot");
-    cache.set_snapshot("lol", to_snapshot(&snapshot1, "snapshot1"));
+    cache
+        .set_snapshot("lol", to_snapshot(&snapshot1, "snapshot1"))
+        .await;
     envoy.poll_until_eq(snapshot1).await.unwrap();
     info!("snapshot equal");
 }
