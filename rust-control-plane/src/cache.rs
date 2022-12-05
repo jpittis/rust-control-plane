@@ -5,7 +5,7 @@ use log::info;
 use slab::Slab;
 use std::collections::{HashMap, HashSet};
 use std::time::Instant;
-use tokio::sync::oneshot;
+use tokio::sync::mpsc;
 use tokio::sync::Mutex;
 
 #[derive(Debug)]
@@ -37,7 +37,7 @@ impl NodeStatus {
 #[derive(Debug)]
 struct Watch {
     req: DiscoveryRequest,
-    tx: oneshot::Sender<(DiscoveryRequest, DiscoveryResponse)>,
+    tx: mpsc::Sender<(DiscoveryRequest, DiscoveryResponse)>,
 }
 
 pub enum FetchError {
@@ -56,7 +56,7 @@ impl Cache {
     pub async fn create_watch(
         &self,
         req: &DiscoveryRequest,
-        tx: oneshot::Sender<(DiscoveryRequest, DiscoveryResponse)>,
+        tx: mpsc::Sender<(DiscoveryRequest, DiscoveryResponse)>,
         known_resource_names: &HashMap<String, HashSet<String>>,
     ) -> Option<usize> {
         let mut inner = self.inner.lock().await;
@@ -69,7 +69,7 @@ impl Cache {
             // Check if a different set of resources has been requested.
             if inner.is_requesting_new_resources(&req, resources, type_known_resource_names) {
                 info!("responding: resource diff");
-                respond(req, tx, resources, &version);
+                respond(req, tx, resources, &version).await;
                 return None;
             }
             if req.version_info == version {
@@ -80,7 +80,7 @@ impl Cache {
             } else {
                 // The version has changed, so we should respond.
                 info!("responding: new version");
-                respond(req, tx, resources, &version);
+                respond(req, tx, resources, &version).await;
                 None
             }
         } else {
@@ -118,7 +118,7 @@ impl Cache {
                 let resources = snapshot.resources(&watch.req.type_url);
                 let version = snapshot.version(&watch.req.type_url);
                 info!("watch triggered version={}", version);
-                respond(&watch.req, watch.tx, resources, &version);
+                respond(&watch.req, watch.tx, resources, &version).await;
             }
         }
     }
@@ -161,7 +161,7 @@ impl Inner {
         &mut self,
         node_id: &str,
         req: &DiscoveryRequest,
-        tx: oneshot::Sender<(DiscoveryRequest, DiscoveryResponse)>,
+        tx: mpsc::Sender<(DiscoveryRequest, DiscoveryResponse)>,
     ) -> usize {
         let watch = Watch {
             req: req.clone(),
@@ -238,12 +238,12 @@ fn build_response(
     }
 }
 
-fn respond(
+async fn respond(
     req: &DiscoveryRequest,
-    tx: oneshot::Sender<(DiscoveryRequest, DiscoveryResponse)>,
+    tx: mpsc::Sender<(DiscoveryRequest, DiscoveryResponse)>,
     resources: Option<&Resources>,
     version: &str,
 ) {
     let rep = build_response(req, resources, version);
-    tx.send((req.clone(), rep)).unwrap();
+    tx.send((req.clone(), rep)).await.unwrap();
 }

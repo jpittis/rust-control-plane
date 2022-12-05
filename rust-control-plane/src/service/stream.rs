@@ -1,13 +1,11 @@
 use crate::cache::Cache;
 use crate::snapshot::type_url::ANY_TYPE;
 use data_plane_api::envoy::service::discovery::v3::{DiscoveryRequest, DiscoveryResponse};
-use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use log::info;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use tokio::sync::oneshot;
 use tonic::{Status, Streaming};
 
 struct LastResponse {
@@ -23,7 +21,7 @@ pub async fn handle_stream(
 ) {
     let mut nonce: i64 = 0;
     let mut known_resource_names: HashMap<String, HashSet<String>> = HashMap::new();
-    let mut watches = FuturesUnordered::new();
+    let (watches_tx, mut watches_rx) = mpsc::channel(16);
     let mut node = None;
     let mut last_responses: HashMap<String, LastResponse> = HashMap::new();
 
@@ -67,12 +65,9 @@ pub async fn handle_stream(
                     }
                 }
 
-                let (tx, rx) = oneshot::channel();
-                cache.create_watch(&req, tx, &known_resource_names).await;
-                watches.push(rx);
+                cache.create_watch(&req, watches_tx.clone(), &known_resource_names).await;
             }
-            Some(response) = watches.next() => {
-                let mut rep = response.unwrap();
+            Some(mut rep) = watches_rx.recv() => {
                 nonce += 1;
                 rep.1.nonce = nonce.to_string();
                 let last_response = LastResponse{
