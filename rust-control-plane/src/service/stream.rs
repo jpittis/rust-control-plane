@@ -1,3 +1,4 @@
+use super::watches::Watches;
 use crate::cache::Cache;
 use crate::snapshot::type_url::ANY_TYPE;
 use data_plane_api::envoy::service::discovery::v3::{DiscoveryRequest, DiscoveryResponse};
@@ -24,6 +25,7 @@ pub async fn handle_stream(
     let (watches_tx, mut watches_rx) = mpsc::channel(16);
     let mut node = None;
     let mut last_responses: HashMap<String, LastResponse> = HashMap::new();
+    let mut watches = Watches::new(cache.clone());
 
     loop {
         tokio::select! {
@@ -65,7 +67,20 @@ pub async fn handle_stream(
                     }
                 }
 
-                cache.create_watch(&req, watches_tx.clone(), &known_resource_names).await;
+                let mut watch_id = None;
+                if let Some(watch) = watches.get(type_url) {
+                    // A watch already exists so we need to replace it if this is a valid ack.
+                    if watch.nonce.is_none() || watch.nonce == Some(nonce) {
+                        cache.cancel_watch(&watch.id).await;
+                        watch_id = cache.create_watch(&req, watches_tx.clone(), &known_resource_names).await;
+                    }
+                } else {
+                    // No watch exists yet so we can just create one.
+                    watch_id = cache.create_watch(&req, watches_tx.clone(), &known_resource_names).await;
+                }
+                if let Some(id) = watch_id {
+                    watches.add(type_url, id);
+                }
             }
             Some(mut rep) = watches_rx.recv() => {
                 nonce += 1;
@@ -74,8 +89,11 @@ pub async fn handle_stream(
                     nonce,
                     resource_names: rep.0.resource_names,
                 };
-                last_responses.insert(rep.0.type_url, last_response);
+                last_responses.insert(rep.0.type_url.clone(), last_response);
                 tx.send(Ok(rep.1)).await.unwrap();
+                if let Some(watch) = watches.get_mut(&rep.0.type_url) {
+                    watch.nonce = Some(nonce)
+                }
             }
         }
     }

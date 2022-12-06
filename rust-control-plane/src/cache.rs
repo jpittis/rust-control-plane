@@ -34,6 +34,12 @@ impl NodeStatus {
     }
 }
 
+#[derive(Clone)]
+pub struct WatchId {
+    node_id: String,
+    index: usize,
+}
+
 #[derive(Debug)]
 struct Watch {
     req: DiscoveryRequest,
@@ -58,7 +64,7 @@ impl Cache {
         req: &DiscoveryRequest,
         tx: mpsc::Sender<(DiscoveryRequest, DiscoveryResponse)>,
         known_resource_names: &HashMap<String, HashSet<String>>,
-    ) -> Option<usize> {
+    ) -> Option<WatchId> {
         let mut inner = self.inner.lock().await;
         let node_id = hash_id(&req.node);
         inner.update_node_status(&node_id);
@@ -92,10 +98,10 @@ impl Cache {
     }
 
     // Deletes a watch previously created with create_watch.
-    pub async fn cancel_watch(&mut self, node: &str, watch_id: usize) {
+    pub async fn cancel_watch(&self, watch_id: &WatchId) {
         let mut inner = self.inner.lock().await;
-        if let Some(status) = inner.status.get_mut(node) {
-            status.watches.remove(watch_id);
+        if let Some(status) = inner.status.get_mut(&watch_id.node_id) {
+            status.watches.remove(watch_id.index);
         }
     }
 
@@ -162,13 +168,17 @@ impl Inner {
         node_id: &str,
         req: &DiscoveryRequest,
         tx: mpsc::Sender<(DiscoveryRequest, DiscoveryResponse)>,
-    ) -> usize {
+    ) -> WatchId {
         let watch = Watch {
             req: req.clone(),
             tx,
         };
         let status = self.status.get_mut(node_id).unwrap();
-        status.watches.insert(watch)
+        let index = status.watches.insert(watch);
+        WatchId {
+            node_id: node_id.to_string(),
+            index,
+        }
     }
 
     fn update_node_status(&mut self, node_id: &str) {
