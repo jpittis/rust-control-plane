@@ -34,6 +34,12 @@ jobs:
       - name: Integration test2
         working-directory: ./test-harness
         run: RUST_LOG=info cargo run -- -n test2
+      - name: Integration test2 with ADS
+        working-directory: ./test-harness
+        run: RUST_LOG=info cargo run -- -n test2 --ads
       - name: Integration test3
         working-directory: ./test-harness
         run: RUST_LOG=info cargo run -- -n test3
+      - name: Integration test3 with ADS
+        working-directory: ./test-harness
+        run: RUST_LOG=info cargo run -- -n test3 --ads
