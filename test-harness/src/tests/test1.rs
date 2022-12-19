@@ -11,7 +11,7 @@ pub fn init() -> Option<Vec<Cluster>> {
     None
 }
 
-pub async fn test(cache: Arc<Cache>, envoy: EnvoyProcess) {
+pub async fn test(cache: Arc<Cache>, envoy: EnvoyProcess, ads: bool) {
     let snapshot1 = vec![Cluster {
         name: "my-cluster".to_string(),
         hidden: false,
@@ -22,7 +22,7 @@ pub async fn test(cache: Arc<Cache>, envoy: EnvoyProcess) {
     }];
     info!("setting snapshot");
     cache
-        .set_snapshot("lol", to_snapshot(&snapshot1, "snapshot1"))
+        .set_snapshot("lol", to_snapshot(&snapshot1, "snapshot1", ads))
         .await;
     envoy.poll_until_eq(snapshot1).await.unwrap();
     info!("snapshot equal");

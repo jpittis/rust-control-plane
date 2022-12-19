@@ -32,6 +32,21 @@ pub struct EnvoyProcess {
 }
 
 impl EnvoyProcess {
+    pub fn new(ads: bool) -> Self {
+        let mut config_path = "envoy/config.yaml".to_string();
+        if ads {
+            config_path = "envoy/ads.yaml".to_string();
+        }
+        Self {
+            config_path,
+            service_node: "lol".to_string(),
+            service_cluster: "wat".to_string(),
+            child: None,
+            poll_timeout: Duration::from_millis(3200),
+            poll_backoff: Duration::from_millis(200),
+        }
+    }
+
     pub fn spawn(&mut self) -> io::Result<()> {
         let child = self.command().spawn()?;
         self.child = Some(child);
@@ -117,19 +132,6 @@ impl EnvoyProcess {
 impl Drop for EnvoyProcess {
     fn drop(&mut self) {
         self.kill().unwrap()
-    }
-}
-
-impl Default for EnvoyProcess {
-    fn default() -> Self {
-        Self {
-            config_path: "envoy/config.yaml".to_string(),
-            service_node: "lol".to_string(),
-            service_cluster: "wat".to_string(),
-            child: None,
-            poll_timeout: Duration::from_millis(3200),
-            poll_backoff: Duration::from_millis(200),
-        }
     }
 }
 

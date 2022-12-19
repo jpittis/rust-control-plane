@@ -22,11 +22,11 @@ pub struct Test {
 }
 
 impl Test {
-    pub async fn new(init_snapshot: Option<Vec<Cluster>>) -> Self {
+    pub async fn new(init_snapshot: Option<Vec<Cluster>>, ads: bool) -> Self {
         let cache = Arc::new(Cache::new(false));
         if let Some(clusters) = init_snapshot {
             cache
-                .set_snapshot(NODE, model::to_snapshot(&clusters, "init"))
+                .set_snapshot(NODE, model::to_snapshot(&clusters, "init", ads))
                 .await;
         }
         Self {
@@ -36,16 +36,16 @@ impl Test {
         }
     }
 
-    pub async fn run<F, Fut>(&mut self, mut f: F)
+    pub async fn run<F, Fut>(&mut self, mut f: F, ads: bool)
     where
-        F: FnMut(Arc<Cache>, EnvoyProcess) -> Fut,
+        F: FnMut(Arc<Cache>, EnvoyProcess, bool) -> Fut,
         Fut: Future<Output = ()>,
     {
         self.serve_with_shutdown();
-        let mut envoy = EnvoyProcess::default();
+        let mut envoy = EnvoyProcess::new(ads);
         envoy.spawn().unwrap();
         envoy.poll_until_started().await.unwrap();
-        f(self.cache.clone(), envoy).await;
+        f(self.cache.clone(), envoy, ads).await;
     }
 
     fn serve_with_shutdown(&mut self) {

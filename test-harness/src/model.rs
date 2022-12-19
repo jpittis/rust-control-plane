@@ -7,7 +7,8 @@ use data_plane_api::envoy::config::core::v3::config_source::ConfigSourceSpecifie
 use data_plane_api::envoy::config::core::v3::grpc_service::{EnvoyGrpc, TargetSpecifier};
 use data_plane_api::envoy::config::core::v3::socket_address::PortSpecifier;
 use data_plane_api::envoy::config::core::v3::{
-    address, Address, ApiConfigSource, ApiVersion, ConfigSource, GrpcService, SocketAddress,
+    address, Address, AggregatedConfigSource, ApiConfigSource, ApiVersion, ConfigSource,
+    GrpcService, SocketAddress,
 };
 use data_plane_api::envoy::config::endpoint::v3::lb_endpoint::HostIdentifier;
 use data_plane_api::envoy::config::endpoint::v3::Endpoint as EndpointPb;
@@ -18,16 +19,17 @@ use rust_control_plane::snapshot::type_url;
 use rust_control_plane::snapshot::{Resource, Resources, Snapshot};
 use std::collections::HashMap;
 
-pub fn to_snapshot(clusters: &[Cluster], version: &str) -> Snapshot {
+pub fn to_snapshot(clusters: &[Cluster], version: &str, ads: bool) -> Snapshot {
     let mut snapshot = Snapshot::new();
     let mut cluster_set = Resources::new(version.to_string());
     let mut endpoint_set = Resources::new(version.to_string());
 
     clusters.iter().for_each(|cluster| {
         if !cluster.hidden {
-            cluster_set
-                .items
-                .insert(cluster.name.clone(), Resource::Cluster(cluster.to_proto()));
+            cluster_set.items.insert(
+                cluster.name.clone(),
+                Resource::Cluster(cluster.to_proto(ads)),
+            );
         }
         endpoint_set.items.insert(
             cluster.name.clone(),
@@ -50,29 +52,12 @@ pub struct Cluster {
 }
 
 impl Cluster {
-    pub fn to_proto(&self) -> ClusterPb {
+    pub fn to_proto(&self, ads: bool) -> ClusterPb {
         ClusterPb {
             name: self.name.clone(),
             cluster_discovery_type: Some(ClusterDiscoveryType::Type(DiscoveryType::Eds as i32)),
             eds_cluster_config: Some(EdsClusterConfig {
-                eds_config: Some(ConfigSource {
-                    resource_api_version: ApiVersion::V3 as i32,
-                    config_source_specifier: Some(ConfigSourceSpecifier::ApiConfigSource(
-                        ApiConfigSource {
-                            api_type: ApiType::Grpc as i32,
-                            transport_api_version: ApiVersion::V3 as i32,
-                            grpc_services: vec![GrpcService {
-                                target_specifier: Some(TargetSpecifier::EnvoyGrpc(EnvoyGrpc {
-                                    cluster_name: XDS_CLUSTER_NAME.to_string(),
-                                    ..EnvoyGrpc::default()
-                                })),
-                                ..GrpcService::default()
-                            }],
-                            ..ApiConfigSource::default()
-                        },
-                    )),
-                    ..ConfigSource::default()
-                }),
+                eds_config: eds_config(ads),
                 service_name: String::new(),
             }),
             ..ClusterPb::default()
@@ -149,4 +134,33 @@ pub fn parse_clusters(body: &str) -> Vec<Cluster> {
 pub fn sort_clusters(vec: &mut [Cluster]) {
     vec.iter_mut().for_each(|cluster| cluster.endpoints.sort());
     vec.sort();
+}
+
+fn eds_config(ads: bool) -> Option<ConfigSource> {
+    if ads {
+        Some(ConfigSource {
+            resource_api_version: ApiVersion::V3 as i32,
+            config_source_specifier: Some(ConfigSourceSpecifier::Ads(AggregatedConfigSource {})),
+            ..ConfigSource::default()
+        })
+    } else {
+        Some(ConfigSource {
+            resource_api_version: ApiVersion::V3 as i32,
+            config_source_specifier: Some(ConfigSourceSpecifier::ApiConfigSource(
+                ApiConfigSource {
+                    api_type: ApiType::Grpc as i32,
+                    transport_api_version: ApiVersion::V3 as i32,
+                    grpc_services: vec![GrpcService {
+                        target_specifier: Some(TargetSpecifier::EnvoyGrpc(EnvoyGrpc {
+                            cluster_name: XDS_CLUSTER_NAME.to_string(),
+                            ..EnvoyGrpc::default()
+                        })),
+                        ..GrpcService::default()
+                    }],
+                    ..ApiConfigSource::default()
+                },
+            )),
+            ..ConfigSource::default()
+        })
+    }
 }
