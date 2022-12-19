@@ -2,6 +2,7 @@ use crate::model;
 use crate::model::Cluster;
 use crate::process::EnvoyProcess;
 use data_plane_api::envoy::service::cluster::v3::cluster_discovery_service_server::ClusterDiscoveryServiceServer;
+use data_plane_api::envoy::service::discovery::v3::aggregated_discovery_service_server::AggregatedDiscoveryServiceServer;
 use data_plane_api::envoy::service::endpoint::v3::endpoint_discovery_service_server::EndpointDiscoveryServiceServer;
 use futures::future::FutureExt;
 use rust_control_plane::cache::Cache;
@@ -53,9 +54,14 @@ impl Test {
         let addr = self.addr.parse().unwrap();
         let cds_service = Service::new(self.cache.clone());
         let eds_service = Service::new(self.cache.clone());
+        let ads_service = Service::new(self.cache.clone());
         let cds = ClusterDiscoveryServiceServer::new(cds_service);
         let eds = EndpointDiscoveryServiceServer::new(eds_service);
-        let server = Server::builder().add_service(cds).add_service(eds);
+        let ads = AggregatedDiscoveryServiceServer::new(ads_service);
+        let server = Server::builder()
+            .add_service(cds)
+            .add_service(eds)
+            .add_service(ads);
         tokio::spawn(server.serve_with_shutdown(addr, rx.map(drop)));
         self.shutdown = Some(tx);
     }
