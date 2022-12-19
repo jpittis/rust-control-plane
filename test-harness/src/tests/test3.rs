@@ -29,6 +29,8 @@ pub fn init() -> Option<Vec<Cluster>> {
 }
 
 pub async fn test(cache: Arc<Cache>, envoy: EnvoyProcess, ads: bool) {
+    envoy.poll_until_eq(init().unwrap()).await.unwrap();
+    info!("init equal");
     let snapshot1 = vec![
         Cluster {
             hidden: false,

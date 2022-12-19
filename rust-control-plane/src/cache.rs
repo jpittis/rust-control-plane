@@ -133,7 +133,10 @@ impl Cache {
                 let watch = status.watches.remove(watch_id);
                 let resources = snapshot.resources(&watch.req.type_url);
                 let version = snapshot.version(&watch.req.type_url);
-                info!("watch triggered version={}", version);
+                info!(
+                    "watch triggered version={} type_url={}",
+                    version, &watch.req.type_url
+                );
                 respond(&watch.req, watch.tx, resources, version).await;
             }
         }

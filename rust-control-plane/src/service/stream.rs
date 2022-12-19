@@ -74,7 +74,7 @@ pub async fn handle_stream(
                 }
 
                 let mut watch_id = None;
-                if let Some(watch) = watches.get(type_url) {
+                if let Some(watch) = watches.get(&req.type_url) {
                     // A watch already exists so we need to replace it if this is a valid ack.
                     if watch.nonce.is_none() || watch.nonce == Some(nonce) {
                         cache.cancel_watch(&watch.id).await;
@@ -85,9 +85,7 @@ pub async fn handle_stream(
                     watch_id = cache.create_watch(&req, watches_tx.clone(), &known_resource_names).await;
                 }
                 if let Some(id) = watch_id {
-                    watches.add(type_url, id);
-                } else {
-                    watches.remove(type_url);
+                    watches.add(&req.type_url, id);
                 }
             }
             Some(mut rep) = watches_rx.recv() => {
