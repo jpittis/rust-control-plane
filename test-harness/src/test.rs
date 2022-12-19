@@ -23,7 +23,7 @@ pub struct Test {
 
 impl Test {
     pub async fn new(init_snapshot: Option<Vec<Cluster>>) -> Self {
-        let cache = Arc::new(Cache::new());
+        let cache = Arc::new(Cache::new(false));
         if let Some(clusters) = init_snapshot {
             cache
                 .set_snapshot(NODE, model::to_snapshot(&clusters, "init"))

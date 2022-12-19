@@ -11,6 +11,7 @@ use tokio::sync::Mutex;
 #[derive(Debug)]
 pub struct Cache {
     inner: Mutex<Inner>,
+    ads: bool,
 }
 
 #[derive(Debug)]
@@ -51,16 +52,11 @@ pub enum FetchError {
     NotFound,
 }
 
-impl Default for Cache {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Cache {
-    pub fn new() -> Self {
+    pub fn new(ads: bool) -> Self {
         Self {
             inner: Mutex::new(Inner::new()),
+            ads,
         }
     }
 
@@ -80,6 +76,10 @@ impl Cache {
             let type_known_resource_names = known_resource_names.get(&req.type_url);
             // Check if a different set of resources has been requested.
             if inner.is_requesting_new_resources(req, resources, type_known_resource_names) {
+                if self.ads && check_ads_consistency(req, resources) {
+                    info!("not responding: ads consistency");
+                    return Some(inner.set_watch(&node_id, req, tx));
+                }
                 info!("responding: resource diff");
                 respond(req, tx, resources, version).await;
                 return None;
@@ -91,6 +91,10 @@ impl Cache {
                 Some(inner.set_watch(&node_id, req, tx))
             } else {
                 // The version has changed, so we should respond.
+                if self.ads && check_ads_consistency(req, resources) {
+                    info!("not responding: ads consistency");
+                    return Some(inner.set_watch(&node_id, req, tx));
+                }
                 info!("responding: new version");
                 respond(req, tx, resources, version).await;
                 None
@@ -262,4 +266,18 @@ async fn respond(
 ) {
     let rep = build_response(req, resources, version);
     tx.send((req.clone(), rep)).await.unwrap();
+}
+
+fn check_ads_consistency(req: &DiscoveryRequest, resources: Option<&Resources>) -> bool {
+    if !req.resource_names.is_empty() {
+        if let Some(resources) = resources {
+            let set: HashSet<&String> = HashSet::from_iter(req.resource_names.iter());
+            for (name, _) in resources.items.iter() {
+                if !set.contains(name) {
+                    return false;
+                }
+            }
+        }
+    }
+    true
 }
