@@ -8,7 +8,7 @@ fn main() -> io::Result<()> {
         .filter_map(Result::ok)
         .collect();
     let mut config = prost_build::Config::new();
-    config.disable_comments(&["."]);
+    config.disable_comments(["."]);
     tonic_build::configure()
         .build_server(true)
         .build_client(true)
