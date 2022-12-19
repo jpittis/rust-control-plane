@@ -17,6 +17,12 @@ pub struct Snapshot {
     pub resources: HashMap<String, Resources>,
 }
 
+impl Default for Snapshot {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Snapshot {
     pub fn new() -> Self {
         Self {
@@ -54,6 +60,7 @@ impl Resources {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone)]
 pub enum Resource {
     Cluster(Cluster),

@@ -51,6 +51,12 @@ pub enum FetchError {
     NotFound,
 }
 
+impl Default for Cache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Cache {
     pub fn new() -> Self {
         Self {
@@ -73,9 +79,9 @@ impl Cache {
             let version = snapshot.version(&req.type_url);
             let type_known_resource_names = known_resource_names.get(&req.type_url);
             // Check if a different set of resources has been requested.
-            if inner.is_requesting_new_resources(&req, resources, type_known_resource_names) {
+            if inner.is_requesting_new_resources(req, resources, type_known_resource_names) {
                 info!("responding: resource diff");
-                respond(req, tx, resources, &version).await;
+                respond(req, tx, resources, version).await;
                 return None;
             }
             if req.version_info == version {
@@ -86,7 +92,7 @@ impl Cache {
             } else {
                 // The version has changed, so we should respond.
                 info!("responding: new version");
-                respond(req, tx, resources, &version).await;
+                respond(req, tx, resources, version).await;
                 None
             }
         } else {
@@ -124,7 +130,7 @@ impl Cache {
                 let resources = snapshot.resources(&watch.req.type_url);
                 let version = snapshot.version(&watch.req.type_url);
                 info!("watch triggered version={}", version);
-                respond(&watch.req, watch.tx, resources, &version).await;
+                respond(&watch.req, watch.tx, resources, version).await;
             }
         }
     }
@@ -141,8 +147,8 @@ impl Cache {
         if req.version_info == version {
             return Err(FetchError::VersionUpToDate);
         }
-        let resources = snapshot.resources(&type_url);
-        return Ok(build_response(req, resources, version));
+        let resources = snapshot.resources(type_url);
+        Ok(build_response(req, resources, version))
     }
 
     pub async fn node_status(&self) -> HashMap<String, Instant> {
@@ -185,7 +191,7 @@ impl Inner {
         self.status
             .entry(node_id.to_string())
             .and_modify(|entry| entry.last_request_time = Instant::now())
-            .or_insert_with(|| NodeStatus::new());
+            .or_insert_with(NodeStatus::new);
     }
 
     fn is_requesting_new_resources(

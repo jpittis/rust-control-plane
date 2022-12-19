@@ -42,12 +42,12 @@ pub async fn handle_stream(
                     req.node = node.clone();
                 }
 
-                if type_url == ANY_TYPE && req.type_url == "" {
+                if type_url == ANY_TYPE && req.type_url.is_empty() {
                     // Type URL is required for ADS (ANY_TYPE) because we can't tell from just the
                     // gRPC method which resource this request is for.
                     error(tx, Status::invalid_argument("type URL is required for ADS")).await;
                     return;
-                } else if req.type_url == "" {
+                } else if req.type_url.is_empty() {
                     // Type URL is otherwise optional, but let's set it for consistency.
                     req.type_url = type_url.to_string();
                 }
@@ -63,7 +63,7 @@ pub async fn handle_stream(
                                     entry.insert(name.clone());
                                 })
                             })
-                            .or_insert_with(|| HashSet::new());
+                            .or_insert_with(HashSet::new);
                     }
                 }
 

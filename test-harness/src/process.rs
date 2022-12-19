@@ -20,7 +20,7 @@ impl fmt::Debug for PollError {
     }
 }
 
-const CLUSTERS_URL: &'static str = "http://127.0.0.1:9901/clusters";
+const CLUSTERS_URL: &str = "http://127.0.0.1:9901/clusters";
 
 pub struct EnvoyProcess {
     config_path: String,
@@ -55,9 +55,7 @@ impl EnvoyProcess {
 
     pub async fn poll_until_started(&self) -> Result<(), PollError> {
         self.poll_until(|| async {
-            get_clusters()
-                .await
-                .map_err(|err| PollError::Reqwest(err))?;
+            get_clusters().await.map_err(PollError::Reqwest)?;
             Ok(())
         })
         .await
@@ -74,16 +72,11 @@ impl EnvoyProcess {
             }],
         });
         // Filter out hidden clusters.
-        expected = expected
-            .into_iter()
-            .filter(|cluster| !cluster.hidden)
-            .collect();
+        expected.retain(|cluster| !cluster.hidden);
         // Sort to make sure the clusters are still in the right order.
         sort_clusters(&mut expected);
         self.poll_until(|| async {
-            let clusters = get_clusters()
-                .await
-                .map_err(|err| PollError::Reqwest(err))?;
+            let clusters = get_clusters().await.map_err(PollError::Reqwest)?;
             if clusters == expected {
                 Ok(())
             } else {

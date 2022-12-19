@@ -18,7 +18,7 @@ use rust_control_plane::snapshot::type_url;
 use rust_control_plane::snapshot::{Resource, Resources, Snapshot};
 use std::collections::HashMap;
 
-pub fn to_snapshot(clusters: &Vec<Cluster>, version: &str) -> Snapshot {
+pub fn to_snapshot(clusters: &[Cluster], version: &str) -> Snapshot {
     let mut snapshot = Snapshot::new();
     let mut cluster_set = Resources::new(version.to_string());
     let mut endpoint_set = Resources::new(version.to_string());
@@ -40,7 +40,7 @@ pub fn to_snapshot(clusters: &Vec<Cluster>, version: &str) -> Snapshot {
     snapshot
 }
 
-const XDS_CLUSTER_NAME: &'static str = "xds";
+const XDS_CLUSTER_NAME: &str = "xds";
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Cluster {
@@ -122,13 +122,13 @@ impl Endpoint {
 
 pub fn parse_clusters(body: &str) -> Vec<Cluster> {
     let mut clusters = HashMap::new();
-    body.split("\n")
+    body.split('\n')
         .filter(|line| line.contains("cx_active"))
         .for_each(|line| {
             let mut parts = line.split("::");
             let name = parts.next().unwrap().to_string();
             let addr_port = parts.next().unwrap();
-            let mut parts = addr_port.split(":");
+            let mut parts = addr_port.split(':');
             let addr = parts.next().unwrap().to_string();
             let port = parts.next().unwrap().parse::<u32>().unwrap();
             let endpoint = Endpoint { addr, port };
@@ -146,7 +146,7 @@ pub fn parse_clusters(body: &str) -> Vec<Cluster> {
     vec
 }
 
-pub fn sort_clusters(vec: &mut Vec<Cluster>) {
+pub fn sort_clusters(vec: &mut [Cluster]) {
     vec.iter_mut().for_each(|cluster| cluster.endpoints.sort());
     vec.sort();
 }

@@ -12,8 +12,8 @@ use std::sync::Arc;
 use tokio::sync::oneshot;
 use tonic::transport::Server;
 
-const NODE: &'static str = "lol";
-const XDS_ADDR: &'static str = "127.0.0.1:5678";
+const NODE: &str = "lol";
+const XDS_ADDR: &str = "127.0.0.1:5678";
 
 pub struct Test {
     addr: String,
