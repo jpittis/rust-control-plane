@@ -14,12 +14,15 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+          components: clippy
       - name: Install envoy
         run: brew install envoy
       - name: Install protoc
         run: brew install protobuf
       - name: Build
         run: cargo build
+      - name: Clippy
+        run: cargo clippy
       - name: Unit tests
         run: cargo test --all
       - name: Integration test1
