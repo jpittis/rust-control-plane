@@ -63,7 +63,13 @@ pub async fn handle_stream(
                                     entry.insert(name.clone());
                                 })
                             })
-                            .or_insert_with(HashSet::new);
+                            .or_insert_with(||  {
+                                let mut entry = HashSet::new();
+                                last_response.resource_names.iter().for_each(|name| {
+                                    entry.insert(name.clone());
+                                });
+                                entry
+                            });
                     }
                 }
 
