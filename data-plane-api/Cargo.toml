@@ -1,6 +1,6 @@
 [package]
 name = "data-plane-api"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Envoy xDS protobuf and gRPC definitions"
 repository = "https://github.com/jpittis/rust-control-plane"
