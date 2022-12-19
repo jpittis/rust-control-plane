@@ -38,6 +38,10 @@ impl Watches {
             },
         );
     }
+
+    pub fn remove(&mut self, type_url: &str) {
+        self.active.remove(type_url);
+    }
 }
 pub async fn cancel_all(active: HashMap<String, Watch>, cache: Arc<Cache>) {
     for (_, watch) in active.iter() {

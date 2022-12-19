@@ -80,6 +80,8 @@ pub async fn handle_stream(
                 }
                 if let Some(id) = watch_id {
                     watches.add(type_url, id);
+                } else {
+                    watches.remove(type_url);
                 }
             }
             Some(mut rep) = watches_rx.recv() => {

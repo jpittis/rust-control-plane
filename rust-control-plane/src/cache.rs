@@ -35,7 +35,7 @@ impl NodeStatus {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct WatchId {
     node_id: String,
     index: usize,
@@ -111,7 +111,7 @@ impl Cache {
     pub async fn cancel_watch(&self, watch_id: &WatchId) {
         let mut inner = self.inner.lock().await;
         if let Some(status) = inner.status.get_mut(&watch_id.node_id) {
-            status.watches.remove(watch_id.index);
+            status.watches.try_remove(watch_id.index);
         }
     }
 
