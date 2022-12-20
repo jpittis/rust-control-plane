@@ -5,7 +5,7 @@ use data_plane_api::envoy::service::cluster::v3::cluster_discovery_service_serve
 use data_plane_api::envoy::service::discovery::v3::aggregated_discovery_service_server::AggregatedDiscoveryServiceServer;
 use data_plane_api::envoy::service::endpoint::v3::endpoint_discovery_service_server::EndpointDiscoveryServiceServer;
 use futures::future::FutureExt;
-use rust_control_plane::cache::SnapshotCache;
+use rust_control_plane::cache::snapshot::SnapshotCache;
 use rust_control_plane::service::common::Service;
 use std::future::Future;
 use std::mem;

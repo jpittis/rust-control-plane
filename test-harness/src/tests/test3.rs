@@ -1,7 +1,7 @@
 use crate::model::{to_snapshot, Cluster, Endpoint};
 use crate::process::EnvoyProcess;
 use log::info;
-use rust_control_plane::cache::SnapshotCache;
+use rust_control_plane::cache::snapshot::SnapshotCache;
 use std::sync::Arc;
 
 // 1. Begin with a snapshot of one cluster, but endpoints for another cluster.
