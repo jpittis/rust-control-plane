@@ -10,14 +10,14 @@ use tonic::{Request, Response};
 use tonic::{Status, Streaming};
 
 #[derive(Debug)]
-pub struct Service {
-    pub cache: Arc<Cache>,
+pub struct Service<C: Cache> {
+    pub cache: Arc<C>,
 }
 
 pub type StreamResponse<T> = Pin<Box<dyn Stream<Item = Result<T, Status>> + Send + 'static>>;
 
-impl Service {
-    pub fn new(cache: Arc<Cache>) -> Self {
+impl<C: Cache> Service<C> {
+    pub fn new(cache: Arc<C>) -> Self {
         Self { cache }
     }
 

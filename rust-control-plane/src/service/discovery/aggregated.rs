@@ -1,3 +1,4 @@
+use crate::cache::Cache;
 use crate::service::common::{Service, StreamResponse};
 use crate::snapshot::type_url::ANY_TYPE;
 use data_plane_api::envoy::service::discovery::v3::aggregated_discovery_service_server::AggregatedDiscoveryService;
@@ -7,7 +8,7 @@ use data_plane_api::envoy::service::discovery::v3::{
 use tonic::{Request, Response, Status, Streaming};
 
 #[tonic::async_trait]
-impl AggregatedDiscoveryService for Service {
+impl<C: Cache> AggregatedDiscoveryService for Service<C> {
     type StreamAggregatedResourcesStream = StreamResponse<DiscoveryResponse>;
 
     async fn stream_aggregated_resources(

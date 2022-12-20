@@ -1,3 +1,4 @@
+use crate::cache::Cache;
 use crate::service::common::{Service, StreamResponse};
 use crate::snapshot::type_url::CLUSTER;
 use data_plane_api::envoy::service::cluster::v3::cluster_discovery_service_server::ClusterDiscoveryService;
@@ -7,7 +8,7 @@ use data_plane_api::envoy::service::discovery::v3::{
 use tonic::{Request, Response, Status, Streaming};
 
 #[tonic::async_trait]
-impl ClusterDiscoveryService for Service {
+impl<C: Cache> ClusterDiscoveryService for Service<C> {
     type StreamClustersStream = StreamResponse<DiscoveryResponse>;
 
     async fn stream_clusters(

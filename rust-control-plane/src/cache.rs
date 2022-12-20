@@ -1,4 +1,5 @@
 use crate::snapshot::{Resources, Snapshot};
+use async_trait::async_trait;
 use data_plane_api::envoy::config::core::v3::Node;
 use data_plane_api::envoy::service::discovery::v3::{DiscoveryRequest, DiscoveryResponse};
 use log::info;
@@ -8,8 +9,24 @@ use std::time::Instant;
 use tokio::sync::mpsc;
 use tokio::sync::Mutex;
 
+#[async_trait]
+pub trait Cache: Sync + Send + 'static {
+    async fn create_watch(
+        &self,
+        req: &DiscoveryRequest,
+        tx: mpsc::Sender<(DiscoveryRequest, DiscoveryResponse)>,
+        known_resource_names: &HashMap<String, HashSet<String>>,
+    ) -> Option<WatchId>;
+    async fn cancel_watch(&self, watch_id: &WatchId);
+    async fn fetch<'a>(
+        &'a self,
+        req: &'a DiscoveryRequest,
+        type_url: &'static str,
+    ) -> Result<DiscoveryResponse, FetchError>;
+}
+
 #[derive(Debug)]
-pub struct Cache {
+pub struct SnapshotCache {
     inner: Mutex<Inner>,
     ads: bool,
 }
@@ -52,7 +69,7 @@ pub enum FetchError {
     NotFound,
 }
 
-impl Cache {
+impl SnapshotCache {
     pub fn new(ads: bool) -> Self {
         Self {
             inner: Mutex::new(Inner::new()),
@@ -60,8 +77,47 @@ impl Cache {
         }
     }
 
+    // Updates snapshot associated with a given node so that future requests receive it.
+    // Triggers existing watches for the given node.
+    pub async fn set_snapshot(&self, node: &str, snapshot: Snapshot) {
+        let mut inner = self.inner.lock().await;
+        inner.snapshots.insert(node.to_string(), snapshot.clone());
+        if let Some(status) = inner.status.get_mut(node) {
+            let mut to_delete = Vec::new();
+            for (watch_id, watch) in &mut status.watches {
+                let version = snapshot.version(&watch.req.type_url);
+                if version != watch.req.version_info {
+                    to_delete.push(watch_id)
+                }
+            }
+
+            for watch_id in to_delete {
+                let watch = status.watches.remove(watch_id);
+                let resources = snapshot.resources(&watch.req.type_url);
+                let version = snapshot.version(&watch.req.type_url);
+                info!(
+                    "watch triggered version={} type_url={}",
+                    version, &watch.req.type_url
+                );
+                respond(&watch.req, watch.tx, resources, version).await;
+            }
+        }
+    }
+
+    pub async fn node_status(&self) -> HashMap<String, Instant> {
+        let inner = self.inner.lock().await;
+        inner
+            .status
+            .iter()
+            .map(|(k, v)| (k.clone(), v.last_request_time))
+            .collect()
+    }
+}
+
+#[async_trait]
+impl Cache for SnapshotCache {
     // Either responds on tx immediately, or sets a watch, returning a watch ID.
-    pub async fn create_watch(
+    async fn create_watch(
         &self,
         req: &DiscoveryRequest,
         tx: mpsc::Sender<(DiscoveryRequest, DiscoveryResponse)>,
@@ -108,41 +164,14 @@ impl Cache {
     }
 
     // Deletes a watch previously created with create_watch.
-    pub async fn cancel_watch(&self, watch_id: &WatchId) {
+    async fn cancel_watch(&self, watch_id: &WatchId) {
         let mut inner = self.inner.lock().await;
         if let Some(status) = inner.status.get_mut(&watch_id.node_id) {
             status.watches.try_remove(watch_id.index);
         }
     }
 
-    // Updates snapshot associated with a given node so that future requests receive it.
-    // Triggers existing watches for the given node.
-    pub async fn set_snapshot(&self, node: &str, snapshot: Snapshot) {
-        let mut inner = self.inner.lock().await;
-        inner.snapshots.insert(node.to_string(), snapshot.clone());
-        if let Some(status) = inner.status.get_mut(node) {
-            let mut to_delete = Vec::new();
-            for (watch_id, watch) in &mut status.watches {
-                let version = snapshot.version(&watch.req.type_url);
-                if version != watch.req.version_info {
-                    to_delete.push(watch_id)
-                }
-            }
-
-            for watch_id in to_delete {
-                let watch = status.watches.remove(watch_id);
-                let resources = snapshot.resources(&watch.req.type_url);
-                let version = snapshot.version(&watch.req.type_url);
-                info!(
-                    "watch triggered version={} type_url={}",
-                    version, &watch.req.type_url
-                );
-                respond(&watch.req, watch.tx, resources, version).await;
-            }
-        }
-    }
-
-    pub async fn fetch<'a>(
+    async fn fetch<'a>(
         &'a self,
         req: &'a DiscoveryRequest,
         type_url: &'static str,
@@ -156,15 +185,6 @@ impl Cache {
         }
         let resources = snapshot.resources(type_url);
         Ok(build_response(req, resources, version))
-    }
-
-    pub async fn node_status(&self) -> HashMap<String, Instant> {
-        let inner = self.inner.lock().await;
-        inner
-            .status
-            .iter()
-            .map(|(k, v)| (k.clone(), v.last_request_time))
-            .collect()
     }
 }
 

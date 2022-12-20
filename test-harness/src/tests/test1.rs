@@ -1,7 +1,7 @@
 use crate::model::{to_snapshot, Cluster, Endpoint};
 use crate::process::EnvoyProcess;
 use log::info;
-use rust_control_plane::cache::Cache;
+use rust_control_plane::cache::SnapshotCache;
 use std::sync::Arc;
 
 // 1. Begin with no snapshot.
@@ -11,7 +11,7 @@ pub fn init() -> Option<Vec<Cluster>> {
     None
 }
 
-pub async fn test(cache: Arc<Cache>, envoy: EnvoyProcess, ads: bool) {
+pub async fn test(cache: Arc<SnapshotCache>, envoy: EnvoyProcess, ads: bool) {
     let snapshot1 = vec![Cluster {
         name: "my-cluster".to_string(),
         hidden: false,

@@ -5,7 +5,7 @@ use data_plane_api::envoy::service::cluster::v3::cluster_discovery_service_serve
 use data_plane_api::envoy::service::discovery::v3::aggregated_discovery_service_server::AggregatedDiscoveryServiceServer;
 use data_plane_api::envoy::service::endpoint::v3::endpoint_discovery_service_server::EndpointDiscoveryServiceServer;
 use futures::future::FutureExt;
-use rust_control_plane::cache::Cache;
+use rust_control_plane::cache::SnapshotCache;
 use rust_control_plane::service::common::Service;
 use std::future::Future;
 use std::mem;
@@ -18,13 +18,13 @@ const XDS_ADDR: &str = "127.0.0.1:5678";
 
 pub struct Test {
     addr: String,
-    cache: Arc<Cache>,
+    cache: Arc<SnapshotCache>,
     shutdown: Option<oneshot::Sender<()>>,
 }
 
 impl Test {
     pub async fn new(init_snapshot: Option<Vec<Cluster>>, ads: bool) -> Self {
-        let cache = Arc::new(Cache::new(false));
+        let cache = Arc::new(SnapshotCache::new(false));
         if let Some(clusters) = init_snapshot {
             cache
                 .set_snapshot(NODE, model::to_snapshot(&clusters, "init", ads))
@@ -39,7 +39,7 @@ impl Test {
 
     pub async fn run<F, Fut>(&mut self, mut f: F, ads: bool)
     where
-        F: FnMut(Arc<Cache>, EnvoyProcess, bool) -> Fut,
+        F: FnMut(Arc<SnapshotCache>, EnvoyProcess, bool) -> Fut,
         Fut: Future<Output = ()>,
     {
         self.serve_with_shutdown();

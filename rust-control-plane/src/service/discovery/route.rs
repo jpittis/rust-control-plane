@@ -1,3 +1,4 @@
+use crate::cache::Cache;
 use crate::service::common::{Service, StreamResponse};
 use crate::snapshot::type_url::ROUTE;
 use data_plane_api::envoy::service::discovery::v3::{
@@ -7,7 +8,7 @@ use data_plane_api::envoy::service::route::v3::route_discovery_service_server::R
 use tonic::{Request, Response, Status, Streaming};
 
 #[tonic::async_trait]
-impl RouteDiscoveryService for Service {
+impl<C: Cache> RouteDiscoveryService for Service<C> {
     type StreamRoutesStream = StreamResponse<DiscoveryResponse>;
 
     async fn stream_routes(

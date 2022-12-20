@@ -8,13 +8,13 @@ pub struct Watch {
     pub id: WatchId,
 }
 
-pub struct Watches {
-    cache: Arc<Cache>,
+pub struct Watches<C: Cache> {
+    cache: Arc<C>,
     active: HashMap<String, Watch>,
 }
 
-impl Watches {
-    pub fn new(cache: Arc<Cache>) -> Self {
+impl<C: Cache> Watches<C> {
+    pub fn new(cache: Arc<C>) -> Self {
         Self {
             cache,
             active: HashMap::new(),
@@ -40,13 +40,13 @@ impl Watches {
     }
 }
 
-pub async fn cancel_all(active: HashMap<String, Watch>, cache: Arc<Cache>) {
+pub async fn cancel_all<C: Cache>(active: HashMap<String, Watch>, cache: Arc<C>) {
     for (_, watch) in active.iter() {
         cache.cancel_watch(&watch.id).await;
     }
 }
 
-impl Drop for Watches {
+impl<C: Cache> Drop for Watches<C> {
     fn drop(&mut self) {
         tokio::spawn(cancel_all(self.active.clone(), self.cache.clone()));
     }

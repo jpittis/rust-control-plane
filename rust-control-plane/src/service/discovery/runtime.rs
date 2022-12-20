@@ -1,3 +1,4 @@
+use crate::cache::Cache;
 use crate::service::common::{Service, StreamResponse};
 use crate::snapshot::type_url::RUNTIME;
 use data_plane_api::envoy::service::discovery::v3::{
@@ -7,7 +8,7 @@ use data_plane_api::envoy::service::runtime::v3::runtime_discovery_service_serve
 use tonic::{Request, Response, Status, Streaming};
 
 #[tonic::async_trait]
-impl RuntimeDiscoveryService for Service {
+impl<C: Cache> RuntimeDiscoveryService for Service<C> {
     type StreamRuntimeStream = StreamResponse<DiscoveryResponse>;
 
     async fn stream_runtime(

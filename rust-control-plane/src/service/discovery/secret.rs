@@ -1,3 +1,4 @@
+use crate::cache::Cache;
 use crate::service::common::{Service, StreamResponse};
 use crate::snapshot::type_url::SECRET;
 use data_plane_api::envoy::service::discovery::v3::{
@@ -7,7 +8,7 @@ use data_plane_api::envoy::service::secret::v3::secret_discovery_service_server:
 use tonic::{Request, Response, Status, Streaming};
 
 #[tonic::async_trait]
-impl SecretDiscoveryService for Service {
+impl<C: Cache> SecretDiscoveryService for Service<C> {
     type StreamSecretsStream = StreamResponse<DiscoveryResponse>;
 
     async fn stream_secrets(

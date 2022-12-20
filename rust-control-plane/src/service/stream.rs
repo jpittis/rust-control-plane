@@ -14,11 +14,11 @@ struct LastResponse {
     resource_names: Vec<String>,
 }
 
-pub async fn handle_stream(
+pub async fn handle_stream<C: Cache>(
     mut stream: Streaming<DiscoveryRequest>,
     tx: mpsc::Sender<Result<DiscoveryResponse, Status>>,
     type_url: &str,
-    cache: Arc<Cache>,
+    cache: Arc<C>,
 ) {
     let mut nonce: i64 = 0;
     let mut known_resource_names: HashMap<String, HashSet<String>> = HashMap::new();

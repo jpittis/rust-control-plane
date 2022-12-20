@@ -1,3 +1,4 @@
+use crate::cache::Cache;
 use crate::service::common::{Service, StreamResponse};
 use crate::snapshot::type_url::LISTENER;
 use data_plane_api::envoy::service::discovery::v3::{
@@ -7,7 +8,7 @@ use data_plane_api::envoy::service::listener::v3::listener_discovery_service_ser
 use tonic::{Request, Response, Status, Streaming};
 
 #[tonic::async_trait]
-impl ListenerDiscoveryService for Service {
+impl<C: Cache> ListenerDiscoveryService for Service<C> {
     type StreamListenersStream = StreamResponse<DiscoveryResponse>;
 
     async fn stream_listeners(
