@@ -3,11 +3,11 @@ use crate::snapshot::{Resources, Snapshot};
 use async_trait::async_trait;
 use data_plane_api::envoy::config::core::v3::Node;
 use data_plane_api::envoy::service::discovery::v3::{DiscoveryRequest, DiscoveryResponse};
-use log::info;
 use slab::Slab;
 use std::collections::{HashMap, HashSet};
 use std::time::Instant;
 use tokio::sync::Mutex;
+use tracing::info;
 
 #[derive(Debug)]
 pub struct SnapshotCache {

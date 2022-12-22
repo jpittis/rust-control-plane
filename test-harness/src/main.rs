@@ -21,7 +21,7 @@ struct Args {
 
 #[tokio::main]
 async fn main() {
-    env_logger::init();
+    tracing_subscriber::fmt::init();
 
     let args = Args::parse();
     match args.name.as_str() {
@@ -37,6 +37,6 @@ async fn main() {
             let mut test3 = Test::new(tests::test3::init(), args.ads).await;
             test3.run(tests::test3::test, args.ads).await;
         }
-        _ => log::error!("Unknown test name {}", args.name),
+        _ => tracing::error!("Unknown test name {}", args.name),
     }
 }

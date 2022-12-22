@@ -11,7 +11,9 @@ pub struct WatchId {
     index: usize,
 }
 
-pub type WatchResponder = mpsc::Sender<(DiscoveryRequest, DiscoveryResponse)>;
+pub type WatchResponse = (DiscoveryRequest, DiscoveryResponse);
+
+pub type WatchResponder = mpsc::Sender<WatchResponse>;
 
 pub enum FetchError {
     VersionUpToDate,

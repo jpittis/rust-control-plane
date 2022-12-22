@@ -16,6 +16,13 @@ pub const EXTENSION_CONFIG: &str = prefix!("envoy.config.core.v3.TypedExtensionC
 
 pub const ANY_TYPE: &str = "";
 
+pub fn shorten(type_url: &str) -> &str {
+    if type_url.is_empty() {
+        return "ADS";
+    }
+    type_url.split('.').last().unwrap_or(type_url)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
