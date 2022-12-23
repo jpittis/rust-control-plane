@@ -110,6 +110,7 @@ impl Cache for SnapshotCache {
                     return Some(inner.set_watch(&node_id, req, tx));
                 }
                 info!("responding: resource diff");
+                // TODO: Don't hold lock across await boundaries (performance).
                 respond(req, tx, resources, version).await;
                 return None;
             }
@@ -125,6 +126,7 @@ impl Cache for SnapshotCache {
                     return Some(inner.set_watch(&node_id, req, tx));
                 }
                 info!("responding: new version");
+                // TODO: Don't hold lock across await boundaries (performance).
                 respond(req, tx, resources, version).await;
                 None
             }
