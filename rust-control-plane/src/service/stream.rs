@@ -78,6 +78,8 @@ impl<C: Cache> Stream<C> {
     async fn handle_client_request(&mut self, mut req: DiscoveryRequest) {
         // Node might only be sent on the first request to save sending the same data
         // repeatedly, so let's cache it in memory for future requests on this stream.
+        // NB: If client changes the node after the first request (that's a client bug), we've
+        // chosen to forward that new one to avoid complexity in this algorithm.
         if req.node.is_some() {
             self.node = req.node.clone();
         } else {
@@ -92,6 +94,7 @@ impl<C: Cache> Stream<C> {
             return;
         } else if req.type_url.is_empty() {
             // Type URL is otherwise optional, but let's set it for consistency.
+            // NB: We don't currently validate the type_url, or check if it's for the right RPC.
             req.type_url = self.type_url.to_string();
         }
 
