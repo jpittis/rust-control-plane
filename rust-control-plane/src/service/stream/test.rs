@@ -1,6 +1,6 @@
 use super::*;
 use crate::cache::{Cache, FetchError, KnownResourceNames, WatchId, WatchResponder};
-use crate::snapshot::type_url::CLUSTER;
+use crate::snapshot::type_url::{ANY_TYPE, CLUSTER, ENDPOINT};
 use async_trait::async_trait;
 use tokio::sync::Mutex;
 use tonic::Code;
@@ -13,6 +13,8 @@ type CreateWatchCall = (DiscoveryRequest, WatchResponder, KnownResourceNames);
 
 struct InnerMockCache {
     pub create_watch_calls: Vec<CreateWatchCall>,
+    pub create_watch_rep: Option<WatchId>,
+    pub cancel_watch_calls: Vec<WatchId>,
 }
 
 #[async_trait]
@@ -23,16 +25,16 @@ impl Cache for MockCache {
         tx: WatchResponder,
         known_resource_names: &KnownResourceNames,
     ) -> Option<WatchId> {
-        self.inner.lock().await.create_watch_calls.push((
-            req.clone(),
-            tx,
-            known_resource_names.clone(),
-        ));
-        None
+        let mut inner = self.inner.lock().await;
+        inner
+            .create_watch_calls
+            .push((req.clone(), tx, known_resource_names.clone()));
+        inner.create_watch_rep.clone()
     }
 
-    async fn cancel_watch(&self, _watch_id: &WatchId) {
-        unimplemented!()
+    async fn cancel_watch(&self, watch_id: &WatchId) {
+        let mut inner = self.inner.lock().await;
+        inner.cancel_watch_calls.push(watch_id.clone());
     }
 
     async fn fetch<'a>(
@@ -56,6 +58,8 @@ impl InnerMockCache {
     fn new() -> Self {
         Self {
             create_watch_calls: Vec::new(),
+            create_watch_rep: None,
+            cancel_watch_calls: Vec::new(),
         }
     }
 }
@@ -64,12 +68,7 @@ struct TestHandle {
     pub rx: mpsc::Receiver<Result<DiscoveryResponse, Status>>,
     pub stream: Stream<MockCache>,
     pub cache: Arc<MockCache>,
-}
-
-impl TestHandle {
-    async fn create_watch_calls(&self) -> Vec<CreateWatchCall> {
-        self.cache.inner.lock().await.create_watch_calls.clone()
-    }
+    type_url: &'static str,
 }
 
 impl TestHandle {
@@ -77,7 +76,32 @@ impl TestHandle {
         let (tx, rx) = mpsc::channel(1);
         let cache = Arc::new(MockCache::new());
         let stream = Stream::new(tx, type_url, cache.clone());
-        Self { rx, stream, cache }
+        Self {
+            rx,
+            stream,
+            cache,
+            type_url,
+        }
+    }
+
+    fn reconnect(&mut self) {
+        let (tx, rx) = mpsc::channel(1);
+        let mut stream = Stream::new(tx, self.type_url, self.cache.clone());
+        self.rx = rx;
+        std::mem::swap(&mut self.stream, &mut stream);
+        drop(stream);
+    }
+
+    async fn create_watch_calls(&self) -> Vec<CreateWatchCall> {
+        self.cache.inner.lock().await.create_watch_calls.clone()
+    }
+
+    async fn set_create_watch_rep(&self, rep: Option<WatchId>) {
+        self.cache.inner.lock().await.create_watch_rep = rep;
+    }
+
+    async fn cancel_watch_calls(&self) -> Vec<WatchId> {
+        self.cache.inner.lock().await.cancel_watch_calls.clone()
     }
 }
 
@@ -137,4 +161,46 @@ async fn test_stream_aborts_if_type_url_not_present_for_ads() {
     let status = h.rx.try_recv().unwrap().unwrap_err();
     assert_eq!(status.code(), Code::InvalidArgument);
     assert_eq!(status.message(), "type URL is required for ADS");
+}
+
+#[tokio::test]
+async fn test_stream_cancels_watches_on_drop() {
+    let mut h = TestHandle::new(ANY_TYPE);
+    let req1 = DiscoveryRequest {
+        node: Some(Node {
+            id: "foobar".to_string(),
+            ..Node::default()
+        }),
+        type_url: CLUSTER.to_string(),
+        ..DiscoveryRequest::default()
+    };
+    let req2 = DiscoveryRequest {
+        node: Some(Node {
+            id: "foobar".to_string(),
+            ..Node::default()
+        }),
+        type_url: ENDPOINT.to_string(),
+        ..DiscoveryRequest::default()
+    };
+    let watch1 = WatchId {
+        node_id: "foobar".to_string(),
+        index: 0,
+    };
+    h.set_create_watch_rep(Some(watch1.clone())).await;
+    h.stream.handle_client_request(req1).await;
+    let watch2 = WatchId {
+        node_id: "foobar".to_string(),
+        index: 1,
+    };
+    h.set_create_watch_rep(Some(watch2.clone())).await;
+    h.stream.handle_client_request(req2).await;
+    h.reconnect();
+    // NB: I don't know how else we can wait for the task spawned by drop to complete.
+    tokio::time::sleep(tokio::time::Duration::from_millis(1)).await;
+    let create_calls = h.create_watch_calls().await;
+    assert_eq!(create_calls.len(), 2);
+    let mut cancel_calls = h.cancel_watch_calls().await;
+    cancel_calls.sort();
+    assert_eq!(cancel_calls.len(), 2);
+    assert_eq!(cancel_calls, vec![watch1, watch2]);
 }

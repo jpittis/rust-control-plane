@@ -5,7 +5,7 @@ use data_plane_api::envoy::service::discovery::v3::{DiscoveryRequest, DiscoveryR
 use std::collections::{HashMap, HashSet};
 use tokio::sync::mpsc;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct WatchId {
     pub node_id: String,
     pub index: usize,
