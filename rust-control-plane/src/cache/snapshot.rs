@@ -1,4 +1,4 @@
-use crate::cache::{Cache, FetchError, WatchId, WatchResponder};
+use crate::cache::{Cache, FetchError, KnownResourceNames, WatchId, WatchResponder};
 use crate::snapshot::{Resources, Snapshot};
 use async_trait::async_trait;
 use data_plane_api::envoy::config::core::v3::Node;
@@ -94,7 +94,7 @@ impl Cache for SnapshotCache {
         &self,
         req: &DiscoveryRequest,
         tx: WatchResponder,
-        known_resource_names: &HashMap<String, HashSet<String>>,
+        known_resource_names: &KnownResourceNames,
     ) -> Option<WatchId> {
         let mut inner = self.inner.lock().await;
         let node_id = hash_id(&req.node);

@@ -7,9 +7,11 @@ use tokio::sync::mpsc;
 
 #[derive(Clone, Debug)]
 pub struct WatchId {
-    node_id: String,
-    index: usize,
+    pub node_id: String,
+    pub index: usize,
 }
+
+pub type KnownResourceNames = HashMap<String, HashSet<String>>;
 
 pub type WatchResponse = (DiscoveryRequest, DiscoveryResponse);
 
@@ -26,7 +28,7 @@ pub trait Cache: Sync + Send + 'static {
         &self,
         req: &DiscoveryRequest,
         tx: WatchResponder,
-        known_resource_names: &HashMap<String, HashSet<String>>,
+        known_resource_names: &KnownResourceNames,
     ) -> Option<WatchId>;
     async fn cancel_watch(&self, watch_id: &WatchId);
     async fn fetch<'a>(
