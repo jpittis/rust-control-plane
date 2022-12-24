@@ -204,3 +204,41 @@ async fn test_stream_cancels_watches_on_drop() {
     assert_eq!(cancel_calls.len(), 2);
     assert_eq!(cancel_calls, vec![watch1, watch2]);
 }
+
+#[tokio::test]
+async fn test_stream_second_watch_cancels_first() {
+    let mut h = TestHandle::new(ANY_TYPE);
+    let req1 = DiscoveryRequest {
+        node: Some(Node {
+            id: "foobar".to_string(),
+            ..Node::default()
+        }),
+        type_url: CLUSTER.to_string(),
+        ..DiscoveryRequest::default()
+    };
+    let req2 = DiscoveryRequest {
+        node: Some(Node {
+            id: "foobar".to_string(),
+            ..Node::default()
+        }),
+        type_url: CLUSTER.to_string(),
+        ..DiscoveryRequest::default()
+    };
+    let watch1 = WatchId {
+        node_id: "foobar".to_string(),
+        index: 0,
+    };
+    h.set_create_watch_rep(Some(watch1.clone())).await;
+    h.stream.handle_client_request(req1).await;
+    let watch2 = WatchId {
+        node_id: "foobar".to_string(),
+        index: 1,
+    };
+    h.set_create_watch_rep(Some(watch2.clone())).await;
+    h.stream.handle_client_request(req2).await;
+    let create_calls = h.create_watch_calls().await;
+    assert_eq!(create_calls.len(), 2);
+    let cancel_calls = h.cancel_watch_calls().await;
+    assert_eq!(cancel_calls.len(), 1);
+    assert_eq!(cancel_calls[0], watch1);
+}
