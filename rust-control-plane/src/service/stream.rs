@@ -3,11 +3,12 @@ mod test;
 
 use super::watches::Watches;
 use crate::cache::{Cache, WatchResponse};
+use crate::service::stream_handle::StreamHandle;
 use crate::snapshot::type_url::{self, ANY_TYPE};
 use data_plane_api::envoy::config::core::v3::Node;
 use data_plane_api::envoy::service::discovery::v3::{DiscoveryRequest, DiscoveryResponse};
 use futures::StreamExt;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tonic::{Status, Streaming};
@@ -41,11 +42,11 @@ struct LastResponse {
 }
 
 struct Stream<C: Cache> {
+    handle: StreamHandle,
     responses: mpsc::Sender<Result<DiscoveryResponse, Status>>,
     type_url: &'static str,
     cache: Arc<C>,
     nonce: i64,
-    known_resource_names: HashMap<String, HashSet<String>>,
     watches_tx: mpsc::Sender<WatchResponse>,
     watches_rx: mpsc::Receiver<WatchResponse>,
     node: Option<Node>,
@@ -62,11 +63,11 @@ impl<C: Cache> Stream<C> {
         let (watches_tx, watches_rx) = mpsc::channel(16);
         let cache_clone = cache.clone();
         Self {
+            handle: StreamHandle::new(),
             responses,
             type_url,
             cache,
             nonce: 0,
-            known_resource_names: HashMap::new(),
             watches_tx,
             watches_rx,
             node: None,
@@ -102,20 +103,8 @@ impl<C: Cache> Stream<C> {
         // the resource names for that response.
         if let Some(last_response) = self.last_responses.get(&req.type_url) {
             if last_response.nonce == 0 || last_response.nonce == self.nonce {
-                let entry = self.known_resource_names.entry(req.type_url.clone());
-                entry
-                    .and_modify(|entry| {
-                        last_response.resource_names.iter().for_each(|name| {
-                            entry.insert(name.clone());
-                        })
-                    })
-                    .or_insert_with(|| {
-                        let mut entry = HashSet::new();
-                        last_response.resource_names.iter().for_each(|name| {
-                            entry.insert(name.clone());
-                        });
-                        entry
-                    });
+                self.handle
+                    .add_known_resource_names(&req.type_url, &last_response.resource_names);
             }
         }
 
@@ -126,7 +115,7 @@ impl<C: Cache> Stream<C> {
                 self.cache.cancel_watch(&watch.id).await;
                 watch_id = self
                     .cache
-                    .create_watch(&req, self.watches_tx.clone(), &self.known_resource_names)
+                    .create_watch(&req, self.watches_tx.clone(), &self.handle)
                     .instrument(info_span!("create_watch"))
                     .await;
             }
@@ -134,7 +123,7 @@ impl<C: Cache> Stream<C> {
             // No watch exists yet so we can just create one.
             watch_id = self
                 .cache
-                .create_watch(&req, self.watches_tx.clone(), &self.known_resource_names)
+                .create_watch(&req, self.watches_tx.clone(), &self.handle)
                 .instrument(info_span!("create_watch"))
                 .await;
         }

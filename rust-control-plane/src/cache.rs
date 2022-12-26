@@ -1,5 +1,6 @@
 pub mod snapshot;
 
+use crate::service::stream_handle::StreamHandle;
 use async_trait::async_trait;
 use data_plane_api::envoy::service::discovery::v3::{DiscoveryRequest, DiscoveryResponse};
 use std::collections::{HashMap, HashSet};
@@ -28,7 +29,7 @@ pub trait Cache: Sync + Send + 'static {
         &self,
         req: &DiscoveryRequest,
         tx: WatchResponder,
-        known_resource_names: &KnownResourceNames,
+        stream: &StreamHandle,
     ) -> Option<WatchId>;
     async fn cancel_watch(&self, watch_id: &WatchId);
     async fn fetch<'a>(

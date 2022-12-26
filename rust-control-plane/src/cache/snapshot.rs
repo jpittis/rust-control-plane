@@ -1,4 +1,5 @@
-use crate::cache::{Cache, FetchError, KnownResourceNames, WatchId, WatchResponder};
+use crate::cache::{Cache, FetchError, WatchId, WatchResponder};
+use crate::service::stream_handle::StreamHandle;
 use crate::snapshot::{Resources, Snapshot};
 use async_trait::async_trait;
 use data_plane_api::envoy::config::core::v3::Node;
@@ -94,7 +95,7 @@ impl Cache for SnapshotCache {
         &self,
         req: &DiscoveryRequest,
         tx: WatchResponder,
-        known_resource_names: &KnownResourceNames,
+        stream: &StreamHandle,
     ) -> Option<WatchId> {
         let mut inner = self.inner.lock().await;
         let node_id = hash_id(&req.node);
@@ -102,7 +103,7 @@ impl Cache for SnapshotCache {
         if let Some(snapshot) = inner.snapshots.get(&node_id) {
             let resources = snapshot.resources(&req.type_url);
             let version = snapshot.version(&req.type_url);
-            let type_known_resource_names = known_resource_names.get(&req.type_url);
+            let type_known_resource_names = stream.known_resource_names(&req.type_url);
             // Check if a different set of resources has been requested.
             if inner.is_requesting_new_resources(req, resources, type_known_resource_names) {
                 if self.ads && check_ads_consistency(req, resources) {
