@@ -1,5 +1,6 @@
 use crate::cache::Cache;
 use crate::service::common::{Service, StreamResponse};
+use crate::snapshot::type_url::VIRTUAL_HOST;
 use data_plane_api::envoy::service::discovery::v3::{
     DeltaDiscoveryRequest, DeltaDiscoveryResponse,
 };
@@ -12,8 +13,8 @@ impl<C: Cache> VirtualHostDiscoveryService for Service<C> {
 
     async fn delta_virtual_hosts(
         &self,
-        _: Request<Streaming<DeltaDiscoveryRequest>>,
+        req: Request<Streaming<DeltaDiscoveryRequest>>,
     ) -> Result<Response<Self::DeltaVirtualHostsStream>, Status> {
-        unimplemented!()
+        self.delta_stream(req, VIRTUAL_HOST)
     }
 }

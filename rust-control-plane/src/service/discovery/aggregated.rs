@@ -22,8 +22,8 @@ impl<C: Cache> AggregatedDiscoveryService for Service<C> {
 
     async fn delta_aggregated_resources(
         &self,
-        _: Request<Streaming<DeltaDiscoveryRequest>>,
+        req: Request<Streaming<DeltaDiscoveryRequest>>,
     ) -> Result<Response<Self::DeltaAggregatedResourcesStream>, Status> {
-        unimplemented!()
+        self.delta_stream(req, ANY_TYPE)
     }
 }

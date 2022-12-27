@@ -22,9 +22,9 @@ impl<C: Cache> RouteDiscoveryService for Service<C> {
 
     async fn delta_routes(
         &self,
-        _: Request<Streaming<DeltaDiscoveryRequest>>,
+        req: Request<Streaming<DeltaDiscoveryRequest>>,
     ) -> Result<Response<Self::DeltaRoutesStream>, Status> {
-        unimplemented!()
+        self.delta_stream(req, ROUTE)
     }
 
     async fn fetch_routes(

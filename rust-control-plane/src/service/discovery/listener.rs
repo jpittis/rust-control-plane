@@ -22,9 +22,9 @@ impl<C: Cache> ListenerDiscoveryService for Service<C> {
 
     async fn delta_listeners(
         &self,
-        _: Request<Streaming<DeltaDiscoveryRequest>>,
+        req: Request<Streaming<DeltaDiscoveryRequest>>,
     ) -> Result<Response<Self::DeltaListenersStream>, Status> {
-        unimplemented!()
+        self.delta_stream(req, LISTENER)
     }
 
     async fn fetch_listeners(

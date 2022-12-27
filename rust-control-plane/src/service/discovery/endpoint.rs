@@ -22,9 +22,9 @@ impl<C: Cache> EndpointDiscoveryService for Service<C> {
 
     async fn delta_endpoints(
         &self,
-        _: Request<Streaming<DeltaDiscoveryRequest>>,
+        req: Request<Streaming<DeltaDiscoveryRequest>>,
     ) -> Result<Response<Self::DeltaEndpointsStream>, Status> {
-        unimplemented!()
+        self.delta_stream(req, ENDPOINT)
     }
 
     async fn fetch_endpoints(

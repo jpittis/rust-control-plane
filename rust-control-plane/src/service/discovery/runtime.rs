@@ -22,9 +22,9 @@ impl<C: Cache> RuntimeDiscoveryService for Service<C> {
 
     async fn delta_runtime(
         &self,
-        _: Request<Streaming<DeltaDiscoveryRequest>>,
+        req: Request<Streaming<DeltaDiscoveryRequest>>,
     ) -> Result<Response<Self::DeltaRuntimeStream>, Status> {
-        unimplemented!()
+        self.delta_stream(req, RUNTIME)
     }
 
     async fn fetch_runtime(

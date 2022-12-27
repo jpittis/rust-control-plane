@@ -22,9 +22,9 @@ impl<C: Cache> ExtensionConfigDiscoveryService for Service<C> {
 
     async fn delta_extension_configs(
         &self,
-        _: Request<Streaming<DeltaDiscoveryRequest>>,
+        req: Request<Streaming<DeltaDiscoveryRequest>>,
     ) -> Result<Response<Self::DeltaExtensionConfigsStream>, Status> {
-        unimplemented!()
+        self.delta_stream(req, EXTENSION_CONFIG)
     }
 
     async fn fetch_extension_configs(

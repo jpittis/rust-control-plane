@@ -22,9 +22,9 @@ impl<C: Cache> SecretDiscoveryService for Service<C> {
 
     async fn delta_secrets(
         &self,
-        _: Request<Streaming<DeltaDiscoveryRequest>>,
+        req: Request<Streaming<DeltaDiscoveryRequest>>,
     ) -> Result<Response<Self::DeltaSecretsStream>, Status> {
-        unimplemented!()
+        self.delta_stream(req, SECRET)
     }
 
     async fn fetch_secrets(

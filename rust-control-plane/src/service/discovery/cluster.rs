@@ -22,9 +22,9 @@ impl<C: Cache> ClusterDiscoveryService for Service<C> {
 
     async fn delta_clusters(
         &self,
-        _: Request<Streaming<DeltaDiscoveryRequest>>,
+        req: Request<Streaming<DeltaDiscoveryRequest>>,
     ) -> Result<Response<Self::DeltaClustersStream>, Status> {
-        unimplemented!()
+        self.delta_stream(req, CLUSTER)
     }
 
     async fn fetch_clusters(

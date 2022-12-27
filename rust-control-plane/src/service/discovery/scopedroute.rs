@@ -22,9 +22,9 @@ impl<C: Cache> ScopedRoutesDiscoveryService for Service<C> {
 
     async fn delta_scoped_routes(
         &self,
-        _: Request<Streaming<DeltaDiscoveryRequest>>,
+        req: Request<Streaming<DeltaDiscoveryRequest>>,
     ) -> Result<Response<Self::DeltaScopedRoutesStream>, Status> {
-        unimplemented!()
+        self.delta_stream(req, SCOPED_ROUTE)
     }
 
     async fn fetch_scoped_routes(

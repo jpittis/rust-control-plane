@@ -1,7 +1,10 @@
 use crate::cache::{Cache, FetchError};
+use crate::service::delta_stream::handle_delta_stream;
 use crate::service::stream::handle_stream;
 use crate::snapshot::type_url;
-use data_plane_api::envoy::service::discovery::v3::{DiscoveryRequest, DiscoveryResponse};
+use data_plane_api::envoy::service::discovery::v3::{
+    DeltaDiscoveryRequest, DeltaDiscoveryResponse, DiscoveryRequest, DiscoveryResponse,
+};
 use futures::Stream;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -51,6 +54,32 @@ impl<C: Cache> Service<C> {
 
         Ok(Response::new(
             Box::pin(output) as StreamResponse<DiscoveryResponse>
+        ))
+    }
+
+    pub fn delta_stream(
+        &self,
+        req: Request<Streaming<DeltaDiscoveryRequest>>,
+        type_url: &'static str,
+    ) -> Result<Response<StreamResponse<DeltaDiscoveryResponse>>, Status> {
+        let input = req.into_inner();
+        let (tx, rx) = mpsc::channel(1);
+        let output = ReceiverStream::new(rx);
+        let cache_clone = self.cache.clone();
+        let stream_id = self.next_stream_id.fetch_add(1, Ordering::SeqCst);
+
+        tokio::spawn(
+            async move { handle_delta_stream(input, tx, type_url, cache_clone).await }.instrument(
+                info_span!(
+                    "handle_delta_stream",
+                    stream_id,
+                    type_url = type_url::shorten(type_url),
+                ),
+            ),
+        );
+
+        Ok(Response::new(
+            Box::pin(output) as StreamResponse<DeltaDiscoveryResponse>
         ))
     }
 
