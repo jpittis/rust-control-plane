@@ -1,5 +1,5 @@
 use super::*;
-use crate::cache::{Cache, FetchError, KnownResourceNames, WatchId, WatchResponder};
+use crate::cache::{Cache, FetchError, WatchId, WatchResponder};
 use crate::snapshot::type_url::{ANY_TYPE, CLUSTER, ENDPOINT};
 use async_trait::async_trait;
 use tokio::sync::Mutex;
@@ -9,7 +9,7 @@ struct MockCache {
     pub inner: Mutex<InnerMockCache>,
 }
 
-type CreateWatchCall = (DiscoveryRequest, WatchResponder, KnownResourceNames);
+type CreateWatchCall = (DiscoveryRequest, WatchResponder);
 
 struct InnerMockCache {
     pub create_watch_calls: Vec<CreateWatchCall>,
@@ -23,12 +23,10 @@ impl Cache for MockCache {
         &self,
         req: &DiscoveryRequest,
         tx: WatchResponder,
-        known_resource_names: &KnownResourceNames,
+        handle: &StreamHandle,
     ) -> Option<WatchId> {
         let mut inner = self.inner.lock().await;
-        inner
-            .create_watch_calls
-            .push((req.clone(), tx, known_resource_names.clone()));
+        inner.create_watch_calls.push((req.clone(), tx));
         inner.create_watch_rep.clone()
     }
 
@@ -124,7 +122,7 @@ async fn test_stream_stores_node_for_future_requests() {
     h.stream.handle_client_request(req_without_node).await;
     let calls = h.create_watch_calls().await;
     assert_eq!(calls.len(), 2);
-    for (req, _, _) in calls {
+    for (req, _) in calls {
         assert_eq!(req, req_with_node);
     }
 }
