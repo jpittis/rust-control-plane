@@ -1,9 +1,17 @@
-use super::*;
-use crate::cache::{Cache, FetchError, WatchId, WatchResponder};
+use crate::cache::{Cache, DeltaWatchResponder, FetchError, WatchId, WatchResponder};
+use crate::service::stream::Stream;
+use crate::service::stream_handle::StreamHandle;
 use crate::snapshot::type_url::{ANY_TYPE, CLUSTER, ENDPOINT};
 use async_trait::async_trait;
+use data_plane_api::envoy::config::core::v3::Node;
+use data_plane_api::envoy::service::discovery::v3::{
+    DeltaDiscoveryRequest, DiscoveryRequest, DiscoveryResponse,
+};
+use std::sync::Arc;
+use tokio::sync::mpsc;
 use tokio::sync::Mutex;
 use tonic::Code;
+use tonic::Status;
 
 struct MockCache {
     pub inner: Mutex<InnerMockCache>,
@@ -23,11 +31,19 @@ impl Cache for MockCache {
         &self,
         req: &DiscoveryRequest,
         tx: WatchResponder,
-        handle: &StreamHandle,
+        _handle: &StreamHandle,
     ) -> Option<WatchId> {
         let mut inner = self.inner.lock().await;
         inner.create_watch_calls.push((req.clone(), tx));
         inner.create_watch_rep.clone()
+    }
+
+    async fn create_delta_watch(
+        &self,
+        _req: &DeltaDiscoveryRequest,
+        _tx: DeltaWatchResponder,
+    ) -> WatchId {
+        unimplemented!()
     }
 
     async fn cancel_watch(&self, watch_id: &WatchId) {
@@ -68,7 +84,6 @@ struct TestHandle {
     pub cache: Arc<MockCache>,
     type_url: &'static str,
 }
-
 impl TestHandle {
     fn new(type_url: &'static str) -> Self {
         let (tx, rx) = mpsc::channel(1);
