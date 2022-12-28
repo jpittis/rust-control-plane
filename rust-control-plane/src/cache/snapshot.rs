@@ -1,9 +1,11 @@
-use crate::cache::{Cache, FetchError, WatchId, WatchResponder};
+use crate::cache::{Cache, DeltaWatchResponder, FetchError, WatchId, WatchResponder};
 use crate::service::stream_handle::StreamHandle;
 use crate::snapshot::{Resources, Snapshot};
 use async_trait::async_trait;
 use data_plane_api::envoy::config::core::v3::Node;
-use data_plane_api::envoy::service::discovery::v3::{DiscoveryRequest, DiscoveryResponse};
+use data_plane_api::envoy::service::discovery::v3::{
+    DeltaDiscoveryRequest, DiscoveryRequest, DiscoveryResponse,
+};
 use slab::Slab;
 use std::collections::{HashMap, HashSet};
 use std::time::Instant;
@@ -161,6 +163,14 @@ impl Cache for SnapshotCache {
         }
         let resources = snapshot.resources(type_url);
         Ok(build_response(req, resources, version))
+    }
+
+    async fn create_delta_watch(
+        &self,
+        _req: &DeltaDiscoveryRequest,
+        _tx: DeltaWatchResponder,
+    ) -> WatchId {
+        unimplemented!();
     }
 }
 

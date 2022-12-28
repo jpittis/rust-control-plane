@@ -2,7 +2,9 @@ pub mod snapshot;
 
 use crate::service::stream_handle::StreamHandle;
 use async_trait::async_trait;
-use data_plane_api::envoy::service::discovery::v3::{DiscoveryRequest, DiscoveryResponse};
+use data_plane_api::envoy::service::discovery::v3::{
+    DeltaDiscoveryRequest, DeltaDiscoveryResponse, DiscoveryRequest, DiscoveryResponse,
+};
 use std::collections::{HashMap, HashSet};
 use tokio::sync::mpsc;
 
@@ -18,6 +20,10 @@ pub type WatchResponse = (DiscoveryRequest, DiscoveryResponse);
 
 pub type WatchResponder = mpsc::Sender<WatchResponse>;
 
+pub type DeltaWatchResponse = DeltaDiscoveryResponse;
+
+pub type DeltaWatchResponder = mpsc::Sender<DeltaWatchResponse>;
+
 pub enum FetchError {
     VersionUpToDate,
     NotFound,
@@ -31,6 +37,11 @@ pub trait Cache: Sync + Send + 'static {
         tx: WatchResponder,
         stream: &StreamHandle,
     ) -> Option<WatchId>;
+    async fn create_delta_watch(
+        &self,
+        req: &DeltaDiscoveryRequest,
+        tx: DeltaWatchResponder,
+    ) -> WatchId;
     async fn cancel_watch(&self, watch_id: &WatchId);
     async fn fetch<'a>(
         &'a self,
