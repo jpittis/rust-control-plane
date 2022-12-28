@@ -1,6 +1,6 @@
 pub mod snapshot;
 
-use crate::service::stream_handle::StreamHandle;
+use crate::service::stream_handle::{DeltaStreamHandle, StreamHandle};
 use async_trait::async_trait;
 use data_plane_api::envoy::service::discovery::v3::{
     DeltaDiscoveryRequest, DeltaDiscoveryResponse, DiscoveryRequest, DiscoveryResponse,
@@ -41,6 +41,7 @@ pub trait Cache: Sync + Send + 'static {
         &self,
         req: &DeltaDiscoveryRequest,
         tx: DeltaWatchResponder,
+        state: &DeltaStreamHandle,
     ) -> WatchId;
     async fn cancel_watch(&self, watch_id: &WatchId);
     async fn fetch<'a>(

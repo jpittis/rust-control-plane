@@ -1,6 +1,6 @@
 use crate::cache::{Cache, DeltaWatchResponder, FetchError, WatchId, WatchResponder};
 use crate::service::stream::Stream;
-use crate::service::stream_handle::StreamHandle;
+use crate::service::stream_handle::{DeltaStreamHandle, StreamHandle};
 use crate::snapshot::type_url::{ANY_TYPE, CLUSTER, ENDPOINT};
 use async_trait::async_trait;
 use data_plane_api::envoy::config::core::v3::Node;
@@ -42,6 +42,7 @@ impl Cache for MockCache {
         &self,
         _req: &DeltaDiscoveryRequest,
         _tx: DeltaWatchResponder,
+        _state: &DeltaStreamHandle,
     ) -> WatchId {
         unimplemented!()
     }

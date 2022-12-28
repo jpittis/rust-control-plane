@@ -1,12 +1,13 @@
 use crate::cache::{Cache, DeltaWatchResponse};
 use crate::service::delta_watches::DeltaWatches;
+use crate::service::stream_handle::DeltaStreamHandle;
 use crate::snapshot::type_url::{self, ANY_TYPE};
 use data_plane_api::envoy::config::core::v3::Node;
 use data_plane_api::envoy::service::discovery::v3::{
     DeltaDiscoveryRequest, DeltaDiscoveryResponse,
 };
 use futures::StreamExt;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tonic::{Status, Streaming};
@@ -40,7 +41,7 @@ struct DeltaStream<C: Cache> {
     cache: Arc<C>,
     nonce: i64,
     node: Option<Node>,
-    states: HashMap<String, DeltaStreamState>,
+    states: HashMap<String, DeltaStreamHandle>,
     watches_tx: mpsc::Sender<DeltaWatchResponse>,
     watches_rx: mpsc::Receiver<DeltaWatchResponse>,
     watches: DeltaWatches<C>,
@@ -93,7 +94,7 @@ impl<C: Cache> DeltaStream<C> {
         let state = self
             .states
             .entry(req.type_url.to_string())
-            .or_insert_with(|| DeltaStreamState::new(&req));
+            .or_insert_with(|| DeltaStreamHandle::new(&req));
         self.watches.remove(&req.type_url);
         if let Some(watch) = self.watches.remove(&req.type_url) {
             self.cache.cancel_watch(&watch.id).await;
@@ -101,7 +102,7 @@ impl<C: Cache> DeltaStream<C> {
         state.apply_subscriptions(&req);
         let watch_id = self
             .cache
-            .create_delta_watch(&req, self.watches_tx.clone())
+            .create_delta_watch(&req, self.watches_tx.clone(), state)
             .await;
         self.watches.add(&req.type_url, watch_id);
     }
@@ -118,50 +119,5 @@ impl<C: Cache> DeltaStream<C> {
             type_url = type_url::shorten(&req.type_url),
             response_nonce = req.response_nonce,
         )
-    }
-}
-
-#[derive(Clone)]
-pub struct DeltaStreamState {
-    wildcard: bool,
-    subscribed_resource_names: HashSet<String>,
-    resource_versions: HashMap<String, String>,
-}
-
-impl DeltaStreamState {
-    fn new(req: &DeltaDiscoveryRequest) -> Self {
-        Self {
-            wildcard: req.resource_names_subscribe.is_empty(),
-            subscribed_resource_names: HashSet::new(),
-            resource_versions: req.initial_resource_versions.clone(),
-        }
-    }
-
-    fn apply_subscriptions(&mut self, req: &DeltaDiscoveryRequest) {
-        self.subscribe(&req.resource_names_subscribe);
-        self.unsubscribe(&req.resource_names_unsubscribe);
-    }
-
-    fn subscribe(&mut self, resources: &[String]) {
-        for name in resources {
-            if name == "*" {
-                self.wildcard = true;
-                continue;
-            }
-            self.subscribed_resource_names.insert(name.clone());
-        }
-    }
-
-    fn unsubscribe(&mut self, resources: &[String]) {
-        for name in resources {
-            if name == "*" {
-                self.wildcard = false;
-                continue;
-            }
-            if self.subscribed_resource_names.contains(name) && self.wildcard {
-                self.resource_versions.insert(name.clone(), String::new());
-            }
-            self.subscribed_resource_names.remove(name);
-        }
     }
 }

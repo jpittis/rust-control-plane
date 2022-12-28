@@ -1,3 +1,4 @@
+use data_plane_api::envoy::service::discovery::v3::DeltaDiscoveryRequest;
 use std::collections::{HashMap, HashSet};
 
 pub struct StreamHandle {
@@ -36,5 +37,50 @@ impl StreamHandle {
 impl Default for StreamHandle {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[derive(Clone)]
+pub struct DeltaStreamHandle {
+    wildcard: bool,
+    subscribed_resource_names: HashSet<String>,
+    resource_versions: HashMap<String, String>,
+}
+
+impl DeltaStreamHandle {
+    pub fn new(req: &DeltaDiscoveryRequest) -> Self {
+        Self {
+            wildcard: req.resource_names_subscribe.is_empty(),
+            subscribed_resource_names: HashSet::new(),
+            resource_versions: req.initial_resource_versions.clone(),
+        }
+    }
+
+    pub fn apply_subscriptions(&mut self, req: &DeltaDiscoveryRequest) {
+        self.subscribe(&req.resource_names_subscribe);
+        self.unsubscribe(&req.resource_names_unsubscribe);
+    }
+
+    pub fn subscribe(&mut self, resources: &[String]) {
+        for name in resources {
+            if name == "*" {
+                self.wildcard = true;
+                continue;
+            }
+            self.subscribed_resource_names.insert(name.clone());
+        }
+    }
+
+    pub fn unsubscribe(&mut self, resources: &[String]) {
+        for name in resources {
+            if name == "*" {
+                self.wildcard = false;
+                continue;
+            }
+            if self.subscribed_resource_names.contains(name) && self.wildcard {
+                self.resource_versions.insert(name.clone(), String::new());
+            }
+            self.subscribed_resource_names.remove(name);
+        }
     }
 }
