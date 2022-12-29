@@ -50,7 +50,7 @@ jobs:
         run: RUST_LOG=info cargo run -- -n test1 --delta
       - name: Integration test1 with delta and ADS
         working-directory: ./test-harness
-        run: RUST_LOG=info cargo run -- -n test1 --ads -- delta
+        run: RUST_LOG=info cargo run -- -n test1 --ads --delta
       - name: Integration test2 with delta
         working-directory: ./test-harness
         run: RUST_LOG=info cargo run -- -n test2 --delta
