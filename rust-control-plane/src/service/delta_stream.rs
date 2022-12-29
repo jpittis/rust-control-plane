@@ -104,13 +104,19 @@ impl<C: Cache> DeltaStream<C> {
             .cache
             .create_delta_watch(&req, self.watches_tx.clone(), state)
             .await;
-        self.watches.add(&req.type_url, watch_id);
+        if let Some(id) = watch_id {
+            self.watches.add(&req.type_url, id);
+        }
     }
 
     async fn handle_watch_response(&mut self, mut rep: DeltaWatchResponse) {
         self.nonce += 1;
-        rep.nonce = self.nonce.to_string();
-        self.responses.send(Ok(rep)).await.unwrap();
+        rep.0.nonce = self.nonce.to_string();
+        self.states
+            .get_mut(&rep.0.type_url)
+            .unwrap()
+            .set_resource_versions(rep.1);
+        self.responses.send(Ok(rep.0)).await.unwrap();
     }
 
     fn build_client_request_span(&self, req: &DeltaDiscoveryRequest) -> tracing::Span {

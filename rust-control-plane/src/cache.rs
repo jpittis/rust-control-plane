@@ -20,7 +20,9 @@ pub type WatchResponse = (DiscoveryRequest, DiscoveryResponse);
 
 pub type WatchResponder = mpsc::Sender<WatchResponse>;
 
-pub type DeltaWatchResponse = DeltaDiscoveryResponse;
+pub type NextVersionMap = HashMap<String, String>;
+
+pub type DeltaWatchResponse = (DeltaDiscoveryResponse, NextVersionMap);
 
 pub type DeltaWatchResponder = mpsc::Sender<DeltaWatchResponse>;
 
@@ -41,9 +43,10 @@ pub trait Cache: Sync + Send + 'static {
         &self,
         req: &DeltaDiscoveryRequest,
         tx: DeltaWatchResponder,
-        state: &DeltaStreamHandle,
-    ) -> WatchId;
+        stream: &DeltaStreamHandle,
+    ) -> Option<WatchId>;
     async fn cancel_watch(&self, watch_id: &WatchId);
+    async fn cancel_delta_watch(&self, watch_id: &WatchId);
     async fn fetch<'a>(
         &'a self,
         req: &'a DiscoveryRequest,

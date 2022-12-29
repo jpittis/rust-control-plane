@@ -40,11 +40,12 @@ impl Default for StreamHandle {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DeltaStreamHandle {
     wildcard: bool,
     subscribed_resource_names: HashSet<String>,
     resource_versions: HashMap<String, String>,
+    first: bool,
 }
 
 impl DeltaStreamHandle {
@@ -53,10 +54,12 @@ impl DeltaStreamHandle {
             wildcard: req.resource_names_subscribe.is_empty(),
             subscribed_resource_names: HashSet::new(),
             resource_versions: req.initial_resource_versions.clone(),
+            first: true,
         }
     }
 
     pub fn apply_subscriptions(&mut self, req: &DeltaDiscoveryRequest) {
+        self.first = false;
         self.subscribe(&req.resource_names_subscribe);
         self.unsubscribe(&req.resource_names_unsubscribe);
     }
@@ -82,5 +85,25 @@ impl DeltaStreamHandle {
             }
             self.subscribed_resource_names.remove(name);
         }
+    }
+
+    pub fn is_wildcard(&self) -> bool {
+        self.wildcard
+    }
+
+    pub fn is_first(&self) -> bool {
+        self.first
+    }
+
+    pub fn resource_versions(&self) -> &HashMap<String, String> {
+        &self.resource_versions
+    }
+
+    pub fn subscribed_resource_names(&self) -> &HashSet<String> {
+        &self.subscribed_resource_names
+    }
+
+    pub fn set_resource_versions(&mut self, versions: HashMap<String, String>) {
+        self.resource_versions = versions
     }
 }

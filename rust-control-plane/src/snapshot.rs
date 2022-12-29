@@ -10,11 +10,13 @@ use data_plane_api::envoy::extensions::transport_sockets::tls::v3::Secret;
 use data_plane_api::envoy::service::runtime::v3::Runtime;
 use data_plane_api::google::protobuf::Any;
 use prost::Message;
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct Snapshot {
     pub resources: HashMap<String, Resources>,
+    pub version_map: Option<HashMap<String, HashMap<String, String>>>,
 }
 
 impl Default for Snapshot {
@@ -27,6 +29,7 @@ impl Snapshot {
     pub fn new() -> Self {
         Self {
             resources: HashMap::new(),
+            version_map: None,
         }
     }
 
@@ -43,6 +46,25 @@ impl Snapshot {
     pub fn resources(&self, type_url: &str) -> Option<&Resources> {
         self.resources.get(type_url)
     }
+
+    pub fn build_version_map(&mut self) {
+        if self.version_map.is_none() {
+            let mut map: HashMap<String, HashMap<String, String>> = HashMap::new();
+            for (type_url, resources) in &self.resources {
+                let entry = map.entry(type_url.clone()).or_insert_with(HashMap::new);
+                for (name, resource) in &resources.items {
+                    let hash = Sha256::digest(resource.encode_to_vec());
+                    entry.insert(name.clone(), format!("{:x}", hash));
+                }
+            }
+            self.version_map = Some(map);
+        }
+    }
+}
+
+pub fn hash_resource(resource: Resource) -> String {
+    let hash = Sha256::digest(resource.encode_to_vec());
+    format!("{:x}", hash)
 }
 
 #[derive(Clone, Debug)]
@@ -108,6 +130,19 @@ impl Resource {
                 type_url: type_url::EXTENSION_CONFIG.to_string(),
                 value: config.encode_to_vec(),
             },
+        }
+    }
+
+    fn encode_to_vec(&self) -> Vec<u8> {
+        match self {
+            Resource::Cluster(cluster) => cluster.encode_to_vec(),
+            Resource::Endpoint(endpoint) => endpoint.encode_to_vec(),
+            Resource::Route(route) => route.encode_to_vec(),
+            Resource::Listener(listener) => listener.encode_to_vec(),
+            Resource::Secret(secret) => secret.encode_to_vec(),
+            Resource::Runtime(runtime) => runtime.encode_to_vec(),
+            Resource::ScopedRoute(route) => route.encode_to_vec(),
+            Resource::ExtensionConfig(config) => config.encode_to_vec(),
         }
     }
 }

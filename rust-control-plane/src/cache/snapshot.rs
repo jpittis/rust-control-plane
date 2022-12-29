@@ -1,10 +1,10 @@
 use crate::cache::{Cache, DeltaWatchResponder, FetchError, WatchId, WatchResponder};
 use crate::service::stream_handle::{DeltaStreamHandle, StreamHandle};
-use crate::snapshot::{Resources, Snapshot};
+use crate::snapshot::{self, Resources, Snapshot};
 use async_trait::async_trait;
 use data_plane_api::envoy::config::core::v3::Node;
 use data_plane_api::envoy::service::discovery::v3::{
-    DeltaDiscoveryRequest, DiscoveryRequest, DiscoveryResponse,
+    DeltaDiscoveryRequest, DeltaDiscoveryResponse, DiscoveryRequest, DiscoveryResponse, Resource,
 };
 use slab::Slab;
 use std::collections::{HashMap, HashSet};
@@ -28,6 +28,7 @@ struct Inner {
 struct NodeStatus {
     last_request_time: Instant,
     watches: Slab<Watch>,
+    delta_watches: Slab<DeltaWatch>,
 }
 
 impl NodeStatus {
@@ -35,6 +36,7 @@ impl NodeStatus {
         Self {
             last_request_time: Instant::now(),
             watches: Slab::new(),
+            delta_watches: Slab::new(),
         }
     }
 }
@@ -43,6 +45,13 @@ impl NodeStatus {
 struct Watch {
     req: DiscoveryRequest,
     tx: WatchResponder,
+}
+
+#[derive(Debug)]
+struct DeltaWatch {
+    req: DeltaDiscoveryRequest,
+    tx: DeltaWatchResponder,
+    stream: DeltaStreamHandle,
 }
 
 impl SnapshotCache {
@@ -55,9 +64,9 @@ impl SnapshotCache {
 
     // Updates snapshot associated with a given node so that future requests receive it.
     // Triggers existing watches for the given node.
-    pub async fn set_snapshot(&self, node: &str, snapshot: Snapshot) {
+    pub async fn set_snapshot(&self, node: &str, mut snapshot: Snapshot) {
         let mut inner = self.inner.lock().await;
-        inner.snapshots.insert(node.to_string(), snapshot.clone());
+
         if let Some(status) = inner.status.get_mut(node) {
             let mut to_delete = Vec::new();
             for (watch_id, watch) in &mut status.watches {
@@ -77,7 +86,23 @@ impl SnapshotCache {
                 );
                 respond(&watch.req, watch.tx, resources, version).await;
             }
+
+            let mut to_delete = Vec::new();
+            for (watch_id, watch) in &mut status.delta_watches {
+                let responded =
+                    try_respond_delta(&watch.req, watch.tx.clone(), &watch.stream, &mut snapshot)
+                        .await;
+                if responded {
+                    to_delete.push(watch_id)
+                }
+            }
+
+            for watch_id in to_delete {
+                status.delta_watches.remove(watch_id);
+            }
         }
+
+        inner.snapshots.insert(node.to_string(), snapshot.clone());
     }
 
     pub async fn node_status(&self) -> HashMap<String, Instant> {
@@ -149,6 +174,14 @@ impl Cache for SnapshotCache {
         }
     }
 
+    // Deletes a watch previously created with create_delta_watch.
+    async fn cancel_delta_watch(&self, watch_id: &WatchId) {
+        let mut inner = self.inner.lock().await;
+        if let Some(status) = inner.status.get_mut(&watch_id.node_id) {
+            status.delta_watches.try_remove(watch_id.index);
+        }
+    }
+
     async fn fetch<'a>(
         &'a self,
         req: &'a DiscoveryRequest,
@@ -167,11 +200,42 @@ impl Cache for SnapshotCache {
 
     async fn create_delta_watch(
         &self,
-        _req: &DeltaDiscoveryRequest,
-        _tx: DeltaWatchResponder,
-        _state: &DeltaStreamHandle,
-    ) -> WatchId {
-        unimplemented!();
+        req: &DeltaDiscoveryRequest,
+        tx: DeltaWatchResponder,
+        stream: &DeltaStreamHandle,
+    ) -> Option<WatchId> {
+        let mut inner = self.inner.lock().await;
+        let node_id = hash_id(&req.node);
+        inner.update_node_status(&node_id);
+        if let Some(snapshot) = inner.snapshots.get_mut(&node_id) {
+            if try_respond_delta(req, tx.clone(), stream, snapshot).await {
+                return None;
+            }
+        }
+        Some(inner.set_delta_watch(&node_id, req, tx, stream))
+    }
+}
+
+async fn try_respond_delta(
+    req: &DeltaDiscoveryRequest,
+    tx: DeltaWatchResponder,
+    stream: &DeltaStreamHandle,
+    snapshot: &mut Snapshot,
+) -> bool {
+    let delta = DeltaResponse::new(req, stream, snapshot);
+    if !delta.filtered.is_empty()
+        || !delta.to_remove.is_empty()
+        || (stream.is_wildcard() && stream.is_first())
+    {
+        tx.send((
+            delta.to_discovery(&req.type_url),
+            delta.next_version_map.clone(),
+        ))
+        .await
+        .unwrap();
+        true
+    } else {
+        false
     }
 }
 
@@ -190,6 +254,26 @@ impl Inner {
         };
         let status = self.status.get_mut(node_id).unwrap();
         let index = status.watches.insert(watch);
+        WatchId {
+            node_id: node_id.to_string(),
+            index,
+        }
+    }
+
+    fn set_delta_watch(
+        &mut self,
+        node_id: &str,
+        req: &DeltaDiscoveryRequest,
+        tx: DeltaWatchResponder,
+        stream: &DeltaStreamHandle,
+    ) -> WatchId {
+        let watch = DeltaWatch {
+            req: req.clone(),
+            tx,
+            stream: stream.clone(),
+        };
+        let status = self.status.get_mut(node_id).unwrap();
+        let index = status.delta_watches.insert(watch);
         WatchId {
             node_id: node_id.to_string(),
             index,
@@ -285,4 +369,102 @@ fn check_ads_consistency(req: &DiscoveryRequest, resources: Option<&Resources>) 
         }
     }
     true
+}
+
+struct DeltaResponse {
+    next_version_map: HashMap<String, String>,
+    filtered: Vec<DeltaResource>,
+    to_remove: Vec<String>,
+}
+
+struct DeltaResource {
+    name: String,
+    resource: snapshot::Resource,
+}
+
+impl DeltaResponse {
+    fn new(
+        req: &DeltaDiscoveryRequest,
+        stream: &DeltaStreamHandle,
+        snapshot: &mut Snapshot,
+    ) -> Self {
+        let mut next_version_map: HashMap<String, String> = HashMap::new();
+        let mut filtered: Vec<DeltaResource> = Vec::new();
+        let mut to_remove: Vec<String> = Vec::new();
+
+        snapshot.build_version_map();
+        let version_map = snapshot
+            .version_map
+            .as_ref()
+            .unwrap()
+            .get(&req.type_url)
+            .unwrap();
+        let resources = snapshot.resources(&req.type_url).unwrap();
+
+        if stream.is_wildcard() {
+            for (name, resource) in &resources.items {
+                let version = version_map.get(name).unwrap();
+                next_version_map.insert(name.clone(), version.to_string());
+                if let Some(prev_version) = stream.resource_versions().get(name) {
+                    if prev_version != version {
+                        filtered.push(DeltaResource {
+                            name: name.clone(),
+                            resource: resource.clone(),
+                        });
+                    }
+                } else {
+                    filtered.push(DeltaResource {
+                        name: name.clone(),
+                        resource: resource.clone(),
+                    });
+                }
+            }
+            for name in stream.resource_versions().keys() {
+                if resources.items.get(name).is_none() {
+                    to_remove.push(name.clone());
+                }
+            }
+        } else {
+            for name in stream.subscribed_resource_names() {
+                if let Some(resource) = resources.items.get(name) {
+                    if let Some(prev_version) = stream.resource_versions().get(name) {
+                        let version = version_map.get(name).unwrap();
+                        if prev_version != version {
+                            filtered.push(DeltaResource {
+                                name: name.clone(),
+                                resource: resource.clone(),
+                            });
+                        }
+                        next_version_map.insert(name.clone(), version.to_string());
+                    } else {
+                        to_remove.push(name.clone());
+                    }
+                }
+            }
+        }
+        Self {
+            next_version_map,
+            filtered,
+            to_remove,
+        }
+    }
+
+    fn to_discovery(&self, type_url: &str) -> DeltaDiscoveryResponse {
+        let resources: Vec<Resource> = self
+            .filtered
+            .iter()
+            .map(|r| Resource {
+                name: r.name.clone(),
+                resource: Some(r.resource.into_any()),
+                version: snapshot::hash_resource(r.resource.clone()),
+                ..Resource::default()
+            })
+            .collect();
+        DeltaDiscoveryResponse {
+            resources,
+            removed_resources: self.to_remove.clone(),
+            type_url: type_url.to_string(),
+            ..DeltaDiscoveryResponse::default()
+        }
+    }
 }
