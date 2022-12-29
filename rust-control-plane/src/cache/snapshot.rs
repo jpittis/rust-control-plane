@@ -89,6 +89,7 @@ impl SnapshotCache {
 
             let mut to_delete = Vec::new();
             for (watch_id, watch) in &mut status.delta_watches {
+                info!("delta watch triggered type_url={}", &watch.req.type_url);
                 let responded =
                     try_respond_delta(&watch.req, watch.tx.clone(), &watch.stream, &mut snapshot)
                         .await;
@@ -212,6 +213,8 @@ impl Cache for SnapshotCache {
                 return None;
             }
         }
+
+        info!("set delta watch");
         Some(inner.set_delta_watch(&node_id, req, tx, stream))
     }
 }
@@ -227,6 +230,7 @@ async fn try_respond_delta(
         || !delta.to_remove.is_empty()
         || (stream.is_wildcard() && stream.is_first())
     {
+        info!("delta responded type_url={}", &req.type_url);
         tx.send((
             delta.to_discovery(&req.type_url),
             delta.next_version_map.clone(),
@@ -235,6 +239,7 @@ async fn try_respond_delta(
         .unwrap();
         true
     } else {
+        info!("delta unchanged type_url={}", &req.type_url);
         false
     }
 }
@@ -377,6 +382,7 @@ struct DeltaResponse {
     to_remove: Vec<String>,
 }
 
+#[derive(Debug)]
 struct DeltaResource {
     name: String,
     resource: snapshot::Resource,
@@ -400,7 +406,6 @@ impl DeltaResponse {
             .get(&req.type_url)
             .unwrap();
         let resources = snapshot.resources(&req.type_url).unwrap();
-
         if stream.is_wildcard() {
             for (name, resource) in &resources.items {
                 let version = version_map.get(name).unwrap();
@@ -426,8 +431,8 @@ impl DeltaResponse {
             }
         } else {
             for name in stream.subscribed_resource_names() {
-                if let Some(resource) = resources.items.get(name) {
-                    if let Some(prev_version) = stream.resource_versions().get(name) {
+                if let Some(prev_version) = stream.resource_versions().get(name) {
+                    if let Some(resource) = resources.items.get(name) {
                         let version = version_map.get(name).unwrap();
                         if prev_version != version {
                             filtered.push(DeltaResource {
@@ -437,8 +442,20 @@ impl DeltaResponse {
                         }
                         next_version_map.insert(name.clone(), version.to_string());
                     } else {
+                        // Remove because this is a previously subscribed resource, but is no
+                        // longer in the snapshot.
                         to_remove.push(name.clone());
                     }
+                } else if let Some(resource) = resources.items.get(name) {
+                    // TODO: This is duplicate code from above.
+                    let version = version_map.get(name).unwrap();
+                    if !version.is_empty() {
+                        filtered.push(DeltaResource {
+                            name: name.clone(),
+                            resource: resource.clone(),
+                        });
+                    }
+                    next_version_map.insert(name.clone(), version.to_string());
                 }
             }
         }

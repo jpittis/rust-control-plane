@@ -51,7 +51,8 @@ pub struct DeltaStreamHandle {
 impl DeltaStreamHandle {
     pub fn new(req: &DeltaDiscoveryRequest) -> Self {
         Self {
-            wildcard: req.resource_names_subscribe.is_empty(),
+            wildcard: req.resource_names_subscribe.is_empty()
+                && req.resource_names_unsubscribe.is_empty(),
             subscribed_resource_names: HashSet::new(),
             resource_versions: req.initial_resource_versions.clone(),
             first: true,
