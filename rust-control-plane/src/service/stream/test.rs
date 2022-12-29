@@ -43,13 +43,17 @@ impl Cache for MockCache {
         _req: &DeltaDiscoveryRequest,
         _tx: DeltaWatchResponder,
         _state: &DeltaStreamHandle,
-    ) -> WatchId {
+    ) -> Option<WatchId> {
         unimplemented!()
     }
 
     async fn cancel_watch(&self, watch_id: &WatchId) {
         let mut inner = self.inner.lock().await;
         inner.cancel_watch_calls.push(watch_id.clone());
+    }
+
+    async fn cancel_delta_watch(&self, _watch_id: &WatchId) {
+        unimplemented!()
     }
 
     async fn fetch<'a>(

@@ -11,7 +11,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tonic::{Status, Streaming};
-use tracing::info;
 use tracing::{info_span, Instrument};
 
 pub async fn handle_delta_stream<C: Cache>(
