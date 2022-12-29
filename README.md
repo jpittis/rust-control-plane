@@ -12,12 +12,18 @@ This project provides libraries for implementing Envoy control-planes in Rust.
   abstractions over an xDS gRPC server (similar to, and modeled after
   [go-control-plane](https://github.com/envoyproxy/go-control-plane)). Not complete, nor
   production ready yet.
-- `test-harness` provides integration tests.
+- `test-harness` provides integration tests for rust-control-plane.
 
 ### Roadmap
 
+Please avoid production use until at least the "Correct, and unlikely to crash" milestone
+is reached. We'll try to avoid breaking our interface after the "Stable interfaces"
+milestone, but won't make hard guarantees until a 1.0.0 release.
+
 - [x] Served a few xDS requests successfully 
-- [ ] Implements most features including ADS and delta streams
+- [x] Implements most features including ADS and delta streams
 - [ ] Correct, and unlikely to crash
-- [ ] Extensible (traits), and documented <- consider using it after this?
+- [ ] Stable interfaces
+- [ ] Documentation
 - [ ] Performance
+- [ ] Higher level constructs
