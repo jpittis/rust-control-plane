@@ -32,11 +32,16 @@ pub struct EnvoyProcess {
 }
 
 impl EnvoyProcess {
-    pub fn new(ads: bool) -> Self {
+    pub fn new(ads: bool, delta: bool) -> Self {
         let mut config_path = "envoy/config.yaml".to_string();
-        if ads {
+        if !delta && ads {
             config_path = "envoy/ads.yaml".to_string();
+        } else if delta && !ads {
+            config_path = "envoy/delta_config.yaml".to_string();
+        } else if delta && ads {
+            config_path = "envoy/delta_ads.yaml".to_string();
         }
+
         Self {
             config_path,
             service_node: "lol".to_string(),

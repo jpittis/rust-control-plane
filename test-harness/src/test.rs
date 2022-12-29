@@ -37,13 +37,13 @@ impl Test {
         }
     }
 
-    pub async fn run<F, Fut>(&mut self, mut f: F, ads: bool)
+    pub async fn run<F, Fut>(&mut self, mut f: F, ads: bool, delta: bool)
     where
         F: FnMut(Arc<SnapshotCache>, EnvoyProcess, bool) -> Fut,
         Fut: Future<Output = ()>,
     {
         self.serve_with_shutdown();
-        let mut envoy = EnvoyProcess::new(ads);
+        let mut envoy = EnvoyProcess::new(ads, delta);
         envoy.spawn().unwrap();
         envoy.poll_until_started().await.unwrap();
         f(self.cache.clone(), envoy, ads).await;
