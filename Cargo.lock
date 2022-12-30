@@ -1295,6 +1295,7 @@ dependencies = [
  "data-plane-api",
  "futures",
  "pretty_assertions",
+ "rand",
  "reqwest",
  "rust-control-plane",
  "tokio",

@@ -1,3 +1,5 @@
+mod event;
+mod generate;
 mod model;
 mod process;
 mod test;
