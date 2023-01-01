@@ -27,3 +27,19 @@ pub struct Node {
 pub struct Fleet {
     pub nodes: IndexMap<String, Node>,
 }
+
+impl Fleet {
+    fn new(node_ids: &[String]) -> Self {
+        let mut nodes = IndexMap::new();
+        for node_id in node_ids {
+            nodes.insert(
+                node_id.clone(),
+                Node {
+                    id: node_id.clone(),
+                    clusters: IndexMap::new(),
+                },
+            );
+        }
+        Self { nodes }
+    }
+}
