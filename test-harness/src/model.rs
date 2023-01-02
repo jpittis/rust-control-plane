@@ -1,5 +1,6 @@
 mod event;
 mod gen;
+mod gen2;
 
 use data_plane_api::envoy::config::cluster::v3::cluster::LbPolicy;
 use indexmap::{IndexMap, IndexSet};

@@ -11,15 +11,15 @@ pub struct FleetEvent {
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum NodeEvent {
-    AddCluster(AddCluster),
+    InsertCluster(InsertCluster),
     RemoveCluster(RemoveCluster),
     UpdateCluster(UpdateCluster),
-    AddEndpoint(AddEndpoint),
+    InsertEndpoint(InsertEndpoint),
     RemoveEndpoint(RemoveEndpoint),
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub struct AddCluster {
+pub struct InsertCluster {
     pub name: String,
     pub lb_policy: LbPolicy,
 }
@@ -36,7 +36,7 @@ pub struct UpdateCluster {
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub struct AddEndpoint {
+pub struct InsertEndpoint {
     pub cluster_name: String,
     pub endpoint: Endpoint,
 }
@@ -58,7 +58,7 @@ pub enum ApplyError {
 pub fn apply_node_event(node: &mut Node, event: &NodeEvent) -> Result<(), ApplyError> {
     use NodeEvent::*;
     match event {
-        AddCluster(e) => match node.clusters.entry(e.name.clone()) {
+        InsertCluster(e) => match node.clusters.entry(e.name.clone()) {
             Entry::Occupied(_) => Err(ApplyError::DuplicateCluster(e.name.clone())),
             Entry::Vacant(v) => {
                 v.insert(Cluster {
@@ -80,7 +80,7 @@ pub fn apply_node_event(node: &mut Node, event: &NodeEvent) -> Result<(), ApplyE
                 Ok(())
             }
         },
-        AddEndpoint(e) => match node.clusters.get_mut(&e.cluster_name) {
+        InsertEndpoint(e) => match node.clusters.get_mut(&e.cluster_name) {
             None => Err(ApplyError::ClusterNotFound(e.cluster_name.clone())),
             Some(cluster) => match cluster.endpoints.insert(e.endpoint.clone()) {
                 false => Err(ApplyError::DuplicateEndpoint(e.endpoint.clone())),
