@@ -25,10 +25,10 @@ pub struct NodeEventWeights {
 impl Default for NodeEventWeights {
     fn default() -> Self {
         Self {
-            insert_cluster: 1,
+            insert_cluster: 2,
             remove_cluster: 1,
-            update_cluster: 1,
-            insert_endpoint: 1,
+            update_cluster: 2,
+            insert_endpoint: 2,
             remove_endpoint: 1,
         }
     }
@@ -41,7 +41,7 @@ pub enum ChooseError {
     NoEndpoints(String, String),
 }
 
-pub fn choose_node_event<R: Rng>(
+pub fn choose_fleet_event<R: Rng>(
     rng: &mut R,
     fleet: &Fleet,
     weights: &NodeEventWeights,
