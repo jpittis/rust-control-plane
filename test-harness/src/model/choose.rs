@@ -25,15 +25,16 @@ pub struct NodeEventWeights {
 impl Default for NodeEventWeights {
     fn default() -> Self {
         Self {
-            insert_cluster: 2,
+            insert_cluster: 8,
             remove_cluster: 1,
-            update_cluster: 2,
-            insert_endpoint: 2,
-            remove_endpoint: 1,
+            update_cluster: 8,
+            insert_endpoint: 8,
+            remove_endpoint: 4,
         }
     }
 }
 
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum ChooseError {
     WeightedError(WeightedError),
     NoNodes,
