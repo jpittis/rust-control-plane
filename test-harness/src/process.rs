@@ -1,3 +1,5 @@
+mod poll;
+
 use std::io;
 use std::process::{Child, Command, Stdio};
 
