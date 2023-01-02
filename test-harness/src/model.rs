@@ -1,6 +1,5 @@
 mod event;
 mod gen;
-mod gen2;
 
 use data_plane_api::envoy::config::cluster::v3::cluster::LbPolicy;
 use indexmap::{IndexMap, IndexSet};
@@ -14,7 +13,6 @@ pub struct Cluster {
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct Endpoint {
-    pub address: String,
     pub port: u32,
 }
 
