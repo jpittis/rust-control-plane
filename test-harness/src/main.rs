@@ -1,4 +1,5 @@
 mod model;
+mod process;
 
 use clap::Parser;
 use tracing::info;
