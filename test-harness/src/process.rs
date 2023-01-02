@@ -1,16 +1,17 @@
-mod poll;
+pub mod get;
+pub mod poll;
 
 use std::io;
 use std::process::{Child, Command, Stdio};
 
-struct Config {
-    ads: bool,
-    delta: bool,
-    service_node: String,
-    service_cluster: String,
+pub struct Config {
+    pub ads: bool,
+    pub delta: bool,
+    pub service_node: String,
+    pub service_cluster: String,
 }
 
-struct Process {
+pub struct Process {
     config: Config,
     child: Option<Child>,
 }
