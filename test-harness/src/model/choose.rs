@@ -1,13 +1,12 @@
 use crate::model::event::{self, FleetEvent, NodeEvent};
 use crate::model::{Endpoint, Fleet, Node};
 use data_plane_api::envoy::config::cluster::v3::cluster::LbPolicy;
-use indexmap::IndexSet;
 use rand::distributions::WeightedError;
 use rand::seq::SliceRandom;
 use rand::Rng;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-enum NodeEventType {
+pub enum NodeEventType {
     InsertCluster,
     RemoveCluster,
     UpdateCluster,
@@ -15,7 +14,7 @@ enum NodeEventType {
     RemoveEndpoint,
 }
 
-struct NodeEventWeights {
+pub struct NodeEventWeights {
     insert_cluster: usize,
     remove_cluster: usize,
     update_cluster: usize,
@@ -35,20 +34,27 @@ impl Default for NodeEventWeights {
     }
 }
 
-enum ChooseError {
+pub enum ChooseError {
+    WeightedError(WeightedError),
     NoNodes,
+    NoClusters(String),
+    NoEndpoints(String, String),
 }
 
-fn choose_node_event<R: Rng>(rng: &mut R, fleet: &Fleet, weights: &NodeEventWeights) -> FleetEvent {
-    let event_type = choose_node_event_type(rng, fleet, weights).unwrap(); // TODO: unwrap
-    let node_id = choose_node_id(rng, fleet).unwrap(); // TODO: unwrap
-    let node = fleet.nodes.get(&node_id).unwrap(); // TODO: unwrap
-    let node_event = fill_node_event(rng, node, &event_type);
-
-    FleetEvent {
+pub fn choose_node_event<R: Rng>(
+    rng: &mut R,
+    fleet: &Fleet,
+    weights: &NodeEventWeights,
+) -> Result<FleetEvent, ChooseError> {
+    let node_event_type =
+        choose_node_event_type(rng, fleet, weights).map_err(ChooseError::WeightedError)?;
+    let node_id = choose_node_id(rng, fleet).ok_or(ChooseError::NoNodes)?;
+    let node = fleet.nodes.get(&node_id).expect("chosen node_id not found");
+    let node_event = fill_node_event(rng, node, &node_event_type)?;
+    Ok(FleetEvent {
         node_id,
         node_event,
-    }
+    })
 }
 
 fn choose_node_event_type<R: Rng>(
@@ -86,11 +92,17 @@ fn choose_node_id<R: Rng>(rng: &mut R, fleet: &Fleet) -> Option<String> {
         .map(|&n| n.clone())
 }
 
-fn fill_node_event<R: Rng>(rng: &mut R, node: &Node, event_type: &NodeEventType) -> NodeEvent {
-    let cluster = choose_cluster(rng, node).unwrap(); // TODO: unwrap
-    let port = choose_port(rng, node, &cluster).unwrap(); // TODO: unwrap
+fn fill_node_event<R: Rng>(
+    rng: &mut R,
+    node: &Node,
+    node_event_type: &NodeEventType,
+) -> Result<NodeEvent, ChooseError> {
+    let cluster =
+        choose_cluster(rng, node).ok_or_else(|| ChooseError::NoClusters(node.id.clone()))?;
+    let port = choose_port(rng, node, &cluster)
+        .ok_or_else(|| ChooseError::NoEndpoints(node.id.clone(), cluster.clone()))?;
     use NodeEventType::*;
-    match event_type {
+    let chosen = match node_event_type {
         InsertCluster => NodeEvent::InsertCluster(event::InsertCluster {
             name: cluster,
             lb_policy: choose_lb_policy(rng),
@@ -108,7 +120,8 @@ fn fill_node_event<R: Rng>(rng: &mut R, node: &Node, event_type: &NodeEventType)
             cluster_name: cluster,
             endpoint: Endpoint { port },
         }),
-    }
+    };
+    Ok(chosen)
 }
 
 fn choose_cluster<R: Rng>(rng: &mut R, node: &Node) -> Option<String> {
@@ -122,13 +135,13 @@ fn choose_cluster<R: Rng>(rng: &mut R, node: &Node) -> Option<String> {
 fn choose_port<R: Rng>(rng: &mut R, node: &Node, cluster: &str) -> Option<u32> {
     node.clusters
         .get(cluster)
-        .unwrap()
+        .expect("chosen cluster not found")
         .endpoints
         .iter()
         .map(|e| e.port)
         .collect::<Vec<u32>>()
         .choose(rng)
-        .map(|p| *p)
+        .copied()
 }
 
 fn choose_lb_policy<R: Rng>(rng: &mut R) -> LbPolicy {
