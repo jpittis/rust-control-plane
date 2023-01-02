@@ -3,7 +3,7 @@ use crate::model::event::{apply_fleet_event, FleetEvent};
 use crate::model::Fleet;
 use rand::Rng;
 
-struct Generator {
+pub struct Generator {
     template: Fleet,
     current: Fleet,
     weights: NodeEventWeights,
